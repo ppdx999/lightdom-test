@@ -99,6 +99,20 @@ async fn test_login_flow() -> Result<()> {
 | form | (locator: &str) -> anyhow::Result<Form> | 指定されたロケータに基づいてフォームを取得します。 |
 | button | (locator: &str) -> anyhow::Result<Button> | 指定されたロケータに基づいてボタンを取得します。 |
 | link | (locator: &str) -> anyhow::Result<Link> | 指定されたロケータに基づいてリンクを取得します。 |
+| element | (locator: &str) -> anyhow::Result<Element> | 指定されたロケータの要素を取得します。 |
+| elements | (locator: &str) -> Vec<Element> | 指定されたロケータに一致する全要素を取得します。 |
+| text | (locator: &str) -> anyhow::Result<String> | 指定されたロケータの要素のテキストを取得します。 |
+| texts | (locator: &str) -> Vec<String> | 指定されたロケータに一致する全要素のテキストを取得します。 |
+| inner_html | (locator: &str) -> anyhow::Result<String> | 指定されたロケータの要素の内部HTMLを取得します。 |
+| table | (locator: &str) -> anyhow::Result<Table> | 指定されたロケータのテーブルを取得します。 |
+| list | (locator: &str) -> anyhow::Result<List> | 指定されたロケータのリストを取得します。 |
+| title | () -> anyhow::Result<String> | `<title>` タグの内容を取得します。 |
+| meta | (name: &str) -> anyhow::Result<String> | メタタグの content 属性を取得します。 |
+| exists | (locator: &str) -> bool | 指定されたロケータの要素が存在するかチェックします。 |
+| contains_text | (text: &str) -> bool | 指定されたテキストを含む要素が存在するかチェックします。 |
+| select_element | (locator: &str) -> anyhow::Result<SelectElement> | 指定されたロケータの select 要素を取得します。 |
+| image | (locator: &str) -> anyhow::Result<Image> | 指定されたロケータの画像を取得します。 |
+| images | (locator: &str) -> Vec<Image> | 指定されたロケータに一致する全画像を取得します。 |
 
 
 `form`で指定できるロケータの種類は以下の通りです。
@@ -132,6 +146,7 @@ async fn test_login_flow() -> Result<()> {
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
 | is_exist | (field_name: &str) -> bool | 指定されたフィールドがフォーム内に存在するかチェックします。 |
+| get_value | (field_name: &str) -> anyhow::Result<String> | 指定されたフィールドの現在値を取得します。 |
 | fill | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | 指定されたフィールドに値を入力します。フィールドが存在しない場合や、入力値がフィールドの型に適合しない場合はエラーを返します。 |
 | check | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | チェックボックスをチェックします。複数の値を持つチェックボックスの場合は、複数回呼び出すことで複数選択できます。 |
 | uncheck | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | チェックボックスのチェックを外します。 |
@@ -358,6 +373,11 @@ assert!(content.contains("<p>"));
 | attr | (name: &str) -> Option<String> | 指定された属性の値を取得します。 |
 | has_class | (class: &str) -> bool | 指定されたクラスを持っているかチェックします。 |
 | inner_html | () -> String | 要素の内部HTMLを取得します。 |
+| text_contains | (text: &str) -> bool | 要素のテキストが指定された文字列を含むかチェックします。 |
+| is_disabled | () -> bool | disabled 属性を持っているかチェックします。 |
+| is_required | () -> bool | required 属性を持っているかチェックします。 |
+| is_readonly | () -> bool | readonly 属性を持っているかチェックします。 |
+| is_checked | () -> bool | checked 属性を持っているかチェックします。 |
 
 #### 使用例
 ```rust
@@ -379,6 +399,173 @@ for elem in dom.elements(".product-item") {
     let price = elem.text();
     println!("{}: {}", name, price);
 }
+```
+
+### Meta Tags
+`Dom` はメタタグや title タグを取得するための API を提供します。SSR アプリケーションの SEO テストに便利です。
+
+| メソッド | 型 | 説明 |
+|----------|------|------------------------------------|
+| title | () -> Result<String> | `<title>` タグの内容を取得します。 |
+| meta | (name: &str) -> Result<String> | `<meta name="...">` または `<meta property="...">` の content 属性を取得します。 |
+
+#### 使用例
+```rust
+let dom = Dom::new(transport).parse(html)?;
+
+// タイトルの取得
+let title = dom.title()?;
+assert_eq!(title, "Welcome - My Site");
+
+// メタタグの取得
+let description = dom.meta("description")?;
+assert_eq!(description, "This is my website");
+
+// OGP タグの取得
+let og_title = dom.meta("og:title")?;
+assert_eq!(og_title, "Welcome");
+```
+
+### Exists Check
+要素の存在確認を行う API です。
+
+| メソッド | 型 | 説明 |
+|----------|------|------------------------------------|
+| exists | (locator: &str) -> bool | 指定されたロケータの要素が存在するかチェックします。 |
+| contains_text | (text: &str) -> bool | 指定されたテキストを含む要素が存在するかチェックします。 |
+
+#### 使用例
+```rust
+// 要素の存在確認
+assert!(dom.exists("#error-message"));
+assert!(!dom.exists("#success-message"));
+
+// テキストの存在確認
+assert!(dom.contains_text("Welcome"));
+assert!(!dom.contains_text("Error"));
+```
+
+### Select Element
+`SelectElement` は `<select>` 要素のオプションを取得するための API です。
+
+| メソッド | 型 | 説明 |
+|----------|------|------------------------------------|
+| select_element | (locator: &str) -> Result<SelectElement> | 指定されたロケータの select 要素を取得します。 |
+
+#### SelectElement
+| メソッド | 型 | 説明 |
+|----------|------|------------------------------------|
+| options | () -> Vec<SelectOption> | 全てのオプションを取得します。 |
+| selected_option | () -> Result<SelectOption> | 選択されているオプションを取得します。 |
+
+#### SelectOption
+| メソッド | 型 | 説明 |
+|----------|------|------------------------------------|
+| value | () -> String | オプションの value 属性を取得します。 |
+| text | () -> String | オプションの表示テキストを取得します。 |
+| is_selected | () -> bool | オプションが選択されているかチェックします。 |
+
+#### 使用例
+```rust
+let select = dom.select_element("#country")?;
+
+// 全オプションの取得
+let options = select.options();
+assert_eq!(options.len(), 3);
+assert_eq!(options[0].value(), "jp");
+assert_eq!(options[0].text(), "Japan");
+
+// 選択されているオプションの取得
+let selected = select.selected_option()?;
+assert_eq!(selected.value(), "us");
+assert!(selected.is_selected());
+```
+
+### Element State
+`Element` に要素の状態をチェックするメソッドが追加されます。
+
+| メソッド | 型 | 説明 |
+|----------|------|------------------------------------|
+| is_disabled | () -> bool | disabled 属性を持っているかチェックします。 |
+| is_required | () -> bool | required 属性を持っているかチェックします。 |
+| is_readonly | () -> bool | readonly 属性を持っているかチェックします。 |
+| is_checked | () -> bool | checked 属性を持っているかチェックします（checkbox/radio）。 |
+
+#### 使用例
+```rust
+let button = dom.element("#submit-btn")?;
+assert!(button.is_disabled());
+
+let email = dom.element("#email")?;
+assert!(email.is_required());
+assert!(!email.is_readonly());
+
+let checkbox = dom.element("#agree")?;
+assert!(checkbox.is_checked());
+```
+
+### Image
+`Dom` は画像要素を取得するための API を提供します。
+
+| メソッド | 型 | 説明 |
+|----------|------|------------------------------------|
+| image | (locator: &str) -> Result<Image> | 指定されたロケータの画像を取得します。 |
+| images | (locator: &str) -> Vec<Image> | 指定されたロケータに一致する全画像を取得します。 |
+
+#### Image
+| メソッド | 型 | 説明 |
+|----------|------|------------------------------------|
+| src | () -> String | 画像の src 属性を取得します。 |
+| alt | () -> Option<String> | 画像の alt 属性を取得します。 |
+| width | () -> Option<String> | 画像の width 属性を取得します。 |
+| height | () -> Option<String> | 画像の height 属性を取得します。 |
+
+#### 使用例
+```rust
+let img = dom.image("#logo")?;
+assert_eq!(img.src(), "/logo.png");
+assert_eq!(img.alt(), Some("Company Logo".to_string()));
+
+// 全画像の取得
+let images = dom.images("img");
+for img in images {
+    println!("{}: {}", img.src(), img.alt().unwrap_or_default());
+}
+```
+
+### Text Search
+`Element` にテキストの部分一致検索メソッドが追加されます。
+
+| メソッド | 型 | 説明 |
+|----------|------|------------------------------------|
+| text_contains | (text: &str) -> bool | 要素のテキストが指定された文字列を含むかチェックします。 |
+
+#### 使用例
+```rust
+let message = dom.element("#message")?;
+assert!(message.text_contains("Success"));
+assert!(!message.text_contains("Error"));
+```
+
+### Form Value
+`Form` にフィールドの初期値を取得するメソッドが追加されます。
+
+| メソッド | 型 | 説明 |
+|----------|------|------------------------------------|
+| get_value | (field_name: &str) -> Result<String> | 指定されたフィールドの現在値を取得します。 |
+
+#### 使用例
+```rust
+let form = dom.form("#edit-form")?;
+
+// 初期値の確認
+let username = form.get_value("username")?;
+assert_eq!(username, "alice");
+
+// 値を変更
+form.fill("username", "bob")?;
+let new_value = form.get_value("username")?;
+assert_eq!(new_value, "bob");
 ```
 
 ## Transport層
