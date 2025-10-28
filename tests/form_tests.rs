@@ -463,3 +463,233 @@ async fn test_form_fill_valid_date() -> Result<()> {
     assert!(body.contains("birthday=2023-01-01"));
     Ok(())
 }
+
+#[tokio::test]
+async fn test_form_check_checkbox() -> Result<()> {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <input type="checkbox" name="interests" value="sports">
+            <input type="checkbox" name="interests" value="music">
+            <input type="checkbox" name="interests" value="reading">
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport.clone()).parse(html.to_string())?;
+    let mut form = dom.form("#form")?;
+
+    form.check("interests", "sports")?;
+    form.check("interests", "reading")?;
+    form.submit().await?;
+
+    let requests = transport.get_captured_requests();
+    let body = requests[0].body.as_ref().unwrap();
+    assert!(body.contains("interests=sports"));
+    assert!(body.contains("interests=reading"));
+    assert!(!body.contains("interests=music"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_form_uncheck_checkbox() -> Result<()> {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <input type="checkbox" name="agree" value="yes" checked>
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport.clone()).parse(html.to_string())?;
+    let mut form = dom.form("#form")?;
+
+    // 初期状態ではchecked
+    form.submit().await?;
+    let requests = transport.get_captured_requests();
+    assert!(requests[0].body.as_ref().unwrap().contains("agree=yes"));
+
+    // uncheckしてから送信
+    let transport2 = MockTransport::new(default_response());
+    let dom2 = Dom::new(transport2.clone()).parse(html.to_string())?;
+    let mut form2 = dom2.form("#form")?;
+    form2.uncheck("agree", "yes")?;
+    form2.submit().await?;
+
+    let requests2 = transport2.get_captured_requests();
+    assert!(!requests2[0].body.as_ref().unwrap().contains("agree=yes"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_form_check_nonexistent_checkbox() {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <input type="text" name="username">
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport).parse(html.to_string()).unwrap();
+    let mut form = dom.form("#form").unwrap();
+
+    let result = form.check("nonexistent", "value");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("does not exist"));
+}
+
+#[tokio::test]
+async fn test_form_choose_radio() -> Result<()> {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <input type="radio" name="gender" value="male">
+            <input type="radio" name="gender" value="female">
+            <input type="radio" name="gender" value="other">
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport.clone()).parse(html.to_string())?;
+    let mut form = dom.form("#form")?;
+
+    form.choose("gender", "female")?;
+    form.submit().await?;
+
+    let requests = transport.get_captured_requests();
+    let body = requests[0].body.as_ref().unwrap();
+    assert!(body.contains("gender=female"));
+    assert!(!body.contains("gender=male"));
+    assert!(!body.contains("gender=other"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_form_choose_radio_overwrite() -> Result<()> {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <input type="radio" name="size" value="small">
+            <input type="radio" name="size" value="medium" checked>
+            <input type="radio" name="size" value="large">
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport.clone()).parse(html.to_string())?;
+    let mut form = dom.form("#form")?;
+
+    // 初期状態ではmediumが選択されている
+    form.submit().await?;
+    let requests = transport.get_captured_requests();
+    assert!(requests[0].body.as_ref().unwrap().contains("size=medium"));
+
+    // largeに変更
+    let transport2 = MockTransport::new(default_response());
+    let dom2 = Dom::new(transport2.clone()).parse(html.to_string())?;
+    let mut form2 = dom2.form("#form")?;
+    form2.choose("size", "large")?;
+    form2.submit().await?;
+
+    let requests2 = transport2.get_captured_requests();
+    let body = requests2[0].body.as_ref().unwrap();
+    assert!(body.contains("size=large"));
+    assert!(!body.contains("size=medium"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_form_choose_nonexistent_radio() {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <input type="text" name="username">
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport).parse(html.to_string()).unwrap();
+    let mut form = dom.form("#form").unwrap();
+
+    let result = form.choose("nonexistent", "value");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("does not exist"));
+}
+
+#[tokio::test]
+async fn test_form_select_option() -> Result<()> {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <select name="country">
+                <option value="us">United States</option>
+                <option value="uk">United Kingdom</option>
+                <option value="jp">Japan</option>
+            </select>
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport.clone()).parse(html.to_string())?;
+    let mut form = dom.form("#form")?;
+
+    form.select("country", "jp")?;
+    form.submit().await?;
+
+    let requests = transport.get_captured_requests();
+    let body = requests[0].body.as_ref().unwrap();
+    assert!(body.contains("country=jp"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_form_select_nonexistent() {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <input type="text" name="username">
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport).parse(html.to_string()).unwrap();
+    let mut form = dom.form("#form").unwrap();
+
+    let result = form.select("nonexistent", "value");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("does not exist"));
+}
+
+#[tokio::test]
+async fn test_form_complex_submission() -> Result<()> {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <input type="text" name="username">
+            <input type="email" name="email">
+            <input type="checkbox" name="notifications" value="email">
+            <input type="checkbox" name="notifications" value="sms">
+            <input type="radio" name="plan" value="free">
+            <input type="radio" name="plan" value="premium">
+            <select name="country">
+                <option value="us">US</option>
+                <option value="jp">JP</option>
+            </select>
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport.clone()).parse(html.to_string())?;
+    let mut form = dom.form("#form")?;
+
+    form.fill("username", "alice")?
+        .fill("email", "alice@example.com")?
+        .check("notifications", "email")?
+        .check("notifications", "sms")?
+        .choose("plan", "premium")?
+        .select("country", "jp")?;
+
+    form.submit().await?;
+
+    let requests = transport.get_captured_requests();
+    let body = requests[0].body.as_ref().unwrap();
+    assert!(body.contains("username=alice"));
+    assert!(body.contains("email=alice@example.com"));
+    assert!(body.contains("notifications=email"));
+    assert!(body.contains("notifications=sms"));
+    assert!(body.contains("plan=premium"));
+    assert!(body.contains("country=jp"));
+    Ok(())
+}

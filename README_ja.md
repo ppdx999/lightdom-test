@@ -122,6 +122,10 @@ async fn login_flow() -> anyhow::Result<()> {
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
 | fill | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | 指定されたフィールドに値を入力します。フィールドが存在しない場合や、入力値がフィールドの型に適合しない場合はエラーを返します。 |
+| check | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | チェックボックスをチェックします。複数の値を持つチェックボックスの場合は、複数回呼び出すことで複数選択できます。 |
+| uncheck | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | チェックボックスのチェックを外します。 |
+| choose | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | ラジオボタンを選択します。同じname属性の他のラジオボタンの選択は自動的に解除されます。 |
+| select | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | セレクトボックスのオプションを選択します。 |
 | submit | (&self) -> anyhow::Result<HttpResponse> | フォームを送信し、HTTP レスポンスを返します。 |
 
 #### fill メソッドのバリデーション
@@ -146,6 +150,32 @@ form.fill("age", "25")?;                   // OK
 form.fill("email", "invalid-email")?;     // Err: Invalid email format
 form.fill("age", "not-a-number")?;         // Err: Invalid number format
 form.fill("nonexistent", "value")?;        // Err: Field does not exist
+```
+
+#### チェックボックス・ラジオボタン・セレクトボックスの使用例
+
+```rust
+// チェックボックス（複数選択可）
+form.check("interests", "sports")?
+    .check("interests", "music")?;
+
+// チェックボックスのチェックを外す
+form.uncheck("agree", "terms")?;
+
+// ラジオボタン（単一選択）
+form.choose("gender", "female")?;
+
+// セレクトボックス
+form.select("country", "japan")?;
+
+// 複合的な使用例
+form.fill("username", "alice")?
+    .fill("email", "alice@example.com")?
+    .check("notifications", "email")?
+    .check("notifications", "sms")?
+    .choose("plan", "premium")?
+    .select("country", "jp")?
+    .submit().await?;
 ```
 
 ### Button

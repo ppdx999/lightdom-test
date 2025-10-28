@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use scraper::{Html, Selector};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// HTTP メソッドを表す列挙型
@@ -88,6 +88,11 @@ pub struct Form<T: HttpTransport> {
     method: String,
     fields: HashMap<String, String>,
     field_types: HashMap<String, String>,
+    // checkbox/radio の情報
+    checkboxes: HashMap<String, Vec<String>>,  // name -> [values]
+    radios: HashMap<String, Vec<String>>,      // name -> [values]
+    checked_checkboxes: HashSet<String>,       // "name=value" のセット
+    selected_radios: HashMap<String, String>,  // name -> selected value
     transport: Arc<T>,
 }
 
@@ -137,16 +142,51 @@ impl<T: HttpTransport> Form<T> {
 
         let mut fields = HashMap::new();
         let mut field_types = HashMap::new();
+        let mut checkboxes: HashMap<String, Vec<String>> = HashMap::new();
+        let mut radios: HashMap<String, Vec<String>> = HashMap::new();
+        let mut checked_checkboxes = HashSet::new();
+        let mut selected_radios = HashMap::new();
 
         for input in form_element.select(&input_selector) {
             if let Some(name) = input.value().attr("name") {
                 let input_type = input.value().attr("type").unwrap_or("text");
                 field_types.insert(name.to_string(), input_type.to_string());
 
-                // hidden フィールドの値は事前に設定
-                if input_type == "hidden" {
-                    if let Some(value) = input.value().attr("value") {
-                        fields.insert(name.to_string(), value.to_string());
+                match input_type {
+                    "hidden" => {
+                        // hidden フィールドの値は事前に設定
+                        if let Some(value) = input.value().attr("value") {
+                            fields.insert(name.to_string(), value.to_string());
+                        }
+                    }
+                    "checkbox" => {
+                        // checkbox の情報を収集
+                        if let Some(value) = input.value().attr("value") {
+                            checkboxes.entry(name.to_string())
+                                .or_insert_with(Vec::new)
+                                .push(value.to_string());
+
+                            // checkedがtrueならチェック済みとして記録
+                            if input.value().attr("checked").is_some() {
+                                checked_checkboxes.insert(format!("{}={}", name, value));
+                            }
+                        }
+                    }
+                    "radio" => {
+                        // radio の情報を収集
+                        if let Some(value) = input.value().attr("value") {
+                            radios.entry(name.to_string())
+                                .or_insert_with(Vec::new)
+                                .push(value.to_string());
+
+                            // checkedがtrueなら選択済みとして記録
+                            if input.value().attr("checked").is_some() {
+                                selected_radios.insert(name.to_string(), value.to_string());
+                            }
+                        }
+                    }
+                    _ => {
+                        // text, email, password, number, etc.
                     }
                 }
             }
@@ -174,6 +214,10 @@ impl<T: HttpTransport> Form<T> {
             method,
             fields,
             field_types,
+            checkboxes,
+            radios,
+            checked_checkboxes,
+            selected_radios,
             transport,
         })
     }
@@ -231,14 +275,89 @@ impl<T: HttpTransport> Form<T> {
         Ok(self)
     }
 
+    /// チェックボックスをチェックする
+    pub fn check(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
+        // チェックボックスが存在するかチェック
+        let checkbox_values = self.checkboxes.get(field_name)
+            .ok_or_else(|| anyhow!("Checkbox '{}' does not exist in the form", field_name))?;
+
+        // 指定された値が存在するかチェック
+        if !checkbox_values.contains(&value.to_string()) {
+            return Err(anyhow!("Checkbox '{}' does not have value '{}'", field_name, value));
+        }
+
+        // チェック状態に設定
+        self.checked_checkboxes.insert(format!("{}={}", field_name, value));
+        Ok(self)
+    }
+
+    /// チェックボックスのチェックを外す
+    pub fn uncheck(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
+        // チェックボックスが存在するかチェック
+        let checkbox_values = self.checkboxes.get(field_name)
+            .ok_or_else(|| anyhow!("Checkbox '{}' does not exist in the form", field_name))?;
+
+        // 指定された値が存在するかチェック
+        if !checkbox_values.contains(&value.to_string()) {
+            return Err(anyhow!("Checkbox '{}' does not have value '{}'", field_name, value));
+        }
+
+        // チェックを外す
+        self.checked_checkboxes.remove(&format!("{}={}", field_name, value));
+        Ok(self)
+    }
+
+    /// ラジオボタンを選択する
+    pub fn choose(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
+        // ラジオボタンが存在するかチェック
+        let radio_values = self.radios.get(field_name)
+            .ok_or_else(|| anyhow!("Radio button '{}' does not exist in the form", field_name))?;
+
+        // 指定された値が存在するかチェック
+        if !radio_values.contains(&value.to_string()) {
+            return Err(anyhow!("Radio button '{}' does not have value '{}'", field_name, value));
+        }
+
+        // ラジオボタンを選択
+        self.selected_radios.insert(field_name.to_string(), value.to_string());
+        Ok(self)
+    }
+
+    /// セレクトボックスのオプションを選択する
+    pub fn select(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
+        // セレクトボックスが存在するかチェック
+        let field_type = self.field_types.get(field_name)
+            .ok_or_else(|| anyhow!("Select '{}' does not exist in the form", field_name))?;
+
+        if field_type != "select" {
+            return Err(anyhow!("Field '{}' is not a select element", field_name));
+        }
+
+        // 値を設定（オプションの存在チェックは実際のHTMLから行うのが理想だが、簡略化のため省略）
+        self.fields.insert(field_name.to_string(), value.to_string());
+        Ok(self)
+    }
+
     /// フォームを送信
     pub async fn submit(&self) -> Result<HttpResponse> {
-        let body = self
-            .fields
-            .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
-            .collect::<Vec<_>>()
-            .join("&");
+        let mut params = Vec::new();
+
+        // 通常のフィールド
+        for (k, v) in &self.fields {
+            params.push(format!("{}={}", k, v));
+        }
+
+        // チェックされたチェックボックス
+        for checked in &self.checked_checkboxes {
+            params.push(checked.clone());
+        }
+
+        // 選択されたラジオボタン
+        for (name, value) in &self.selected_radios {
+            params.push(format!("{}={}", name, value));
+        }
+
+        let body = params.join("&");
 
         let req = HttpRequest {
             method: if self.method.to_lowercase() == "get" {
