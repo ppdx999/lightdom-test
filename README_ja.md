@@ -11,67 +11,77 @@ Rust で生成したHTMLフォームやボタンの操作をテストするた�
 
 ```rust
 fn login_page() -> String {
-    "<form id=\"login-form\" action=\"/login\" method=\"post\">
-        <input type=\"hidden\" name=\"_csrf\" value=\"fixed-token\">
-        <label for=\"u\">User</label>
-        <input id=\"u\" type=\"text\" name=\"username\">
-        <label for=\"p\">Pass</label>
-        <input id=\"p\" type=\"password\" name=\"password\">
-        <button type=\"submit\">Login</button>
-    </form>".into()
+    r#"
+    <form id="login-form" action="/login" method="post">
+        <input type="hidden" name="_csrf" value="fixed-token">
+        <label for="u">User</label>
+        <input id="u" type="text" name="username">
+        <label for="p">Pass</label>
+        <input id="p" type="password" name="password">
+        <button type="submit">Login</button>
+    </form>
+    "#.to_string()
 }
 ```
 
-### 2) ハンドラを用意する
+### 2) MockTransport を実装する
 
 ```rust
-use axum::{response::Html as HtmlResp, routing::post, Router, Form};
-use serde::Deserialize;
+use lightdom_test::{HttpTransport, HttpRequest, HttpResponse, StatusCode};
+use anyhow::Result;
 
-#[derive(Deserialize)]
-struct Login { username: String, password: String }
+struct MockTransport;
 
-async fn login(Form(f): Form<Login>) -> HtmlResp<String> {
-    if f.username == "alice" && f.password == "secret" {
-        HtmlResp(format!("Welcome, {}", f.username))
-    } else {
-        HtmlResp("NG".into())
+#[async_trait::async_trait]
+impl HttpTransport for MockTransport {
+    async fn send(&self, req: HttpRequest) -> Result<HttpResponse> {
+        // リクエストの内容に応じてレスポンスを返す
+        if req.url == "/login" {
+            if let Some(body) = &req.body {
+                if body.contains("username=alice") && body.contains("password=secret") {
+                    return Ok(HttpResponse {
+                        status: StatusCode(200),
+                        headers: Default::default(),
+                        body: "Welcome, alice".to_string(),
+                    });
+                }
+            }
+            Ok(HttpResponse {
+                status: StatusCode(401),
+                headers: Default::default(),
+                body: "Invalid credentials".to_string(),
+            })
+        } else {
+            Ok(HttpResponse {
+                status: StatusCode(404),
+                headers: Default::default(),
+                body: "Not Found".to_string(),
+            })
+        }
     }
-}
-
-fn app() -> Router {
-    Router::new().route("/login", post(login))
 }
 ```
 
 ### 3) テストを書く
 
 ```rust
-use lightdom_test::{Dom, HttpTransport, HttpRequest, HttpResponse};
-
-// Axum 用の Transport 実装（詳細略）
-struct AxumTransport;
-#[async_trait::async_trait]
-impl HttpTransport for AxumTransport {
-    async fn send(&self, req: HttpRequest) -> anyhow::Result<HttpResponse> {
-        // axum Router を直叩き
-        todo!()
-    }
-}
+use lightdom_test::Dom;
 
 #[tokio::test]
-async fn login_flow() -> anyhow::Result<()> {
-    let app = app(); // axum::Router
+async fn test_login_flow() -> Result<()> {
+    let html = login_page();
+    let transport = MockTransport;
 
-    let mut form = Dom::new(transporter).parse(login_page().into_string()?)?
-        .form("@login-form")?;  // test-id="login-form" のフォームを取得
+    let mut form = Dom::new(transport)
+        .parse(html)?
+        .form("#login-form")?;
 
     form.fill("username", "alice")?
         .fill("password", "secret")?;
 
-    let (status, body) = form.submit(&app).await?;
-    assert!(status.is_success());
-    assert!(body.contains("Welcome, alice"));
+    let response = form.submit().await?;
+    assert!(response.status.is_success());
+    assert!(response.body.contains("Welcome, alice"));
     Ok(())
 }
 ```
@@ -200,17 +210,30 @@ form.fill("username", "alice")?
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| click | (&self, app: &Router) -> anyhow::Result<HttpResponse> | | フォームを送信し、HTTP レスポンスを返します。 |
+| click | (&self) -> anyhow::Result<HttpResponse> | ボタンをクリックし、関連するフォームを送信します。HTTP レスポンスを返します。 |
 
+#### 使用例
+```rust
+let button = dom.button("#submit-btn")?;
+let response = button.click().await?;
+assert!(response.status.is_success());
+```
 
 ### Link
 `Link` は HTML リンクを表し、クリック操作を行うためのメソッドを提供します。
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| click | (&self, app: &Router) -> anyhow::Result<HttpResponse> | | フォームを送信し、HTTP レスポンスを返します。 |
+| click | (&self) -> anyhow::Result<HttpResponse> | リンクをクリックし、href 先に GET リクエストを送信します。HTTP レスポンスを返します。 |
 
-## 取得系API（計画中）
+#### 使用例
+```rust
+let link = dom.link("Home")?;
+let response = link.click().await?;
+assert_eq!(response.status.0, 200);
+```
+
+## 取得系API
 
 取得系APIは、HTMLコンテンツからデータを抽出するための機能を提供します。
 
@@ -367,7 +390,7 @@ for elem in dom.elements(".product-item") {
 
 ```rust
 #[async_trait::async_trait]
-pub trait HttpTransport {
+pub trait HttpTransport: Send + Sync {
     async fn send(&self, req: HttpRequest) -> anyhow::Result<HttpResponse>;
 }
 ```
@@ -376,10 +399,10 @@ pub trait HttpTransport {
 `HttpRequest` は HTTP リクエストを表す構造体です。
 ```rust
 pub struct HttpRequest {
-    method: Method,
-    url: String,
-    headers: HashMap<String, String>,
-    body: Option<String>,
+    pub method: Method,
+    pub url: String,
+    pub headers: HashMap<String, String>,
+    pub body: Option<String>,
 }
 ```
 
@@ -387,9 +410,74 @@ pub struct HttpRequest {
 `HttpResponse` は HTTP レスポンスを表す構造体です。
 ```rust
 pub struct HttpResponse {
-    status: StatusCode,
-    headers: HashMap<String, String>,
-    body: String,
+    pub status: StatusCode,
+    pub headers: HashMap<String, String>,
+    pub body: String,
+}
+```
+
+### Transport実装例
+
+テストには MockTransport、本番環境では実際のHTTPクライアント（reqwest等）を使用できます：
+
+```rust
+use std::sync::{Arc, Mutex};
+
+// テスト用: リクエストをキャプチャする MockTransport
+#[derive(Clone)]
+struct MockTransport {
+    captured_requests: Arc<Mutex<Vec<HttpRequest>>>,
+    response: HttpResponse,
+}
+
+impl MockTransport {
+    fn new(response: HttpResponse) -> Self {
+        Self {
+            captured_requests: Arc::new(Mutex::new(Vec::new())),
+            response,
+        }
+    }
+
+    fn get_captured_requests(&self) -> Vec<HttpRequest> {
+        self.captured_requests.lock().unwrap().clone()
+    }
+}
+
+#[async_trait::async_trait]
+impl HttpTransport for MockTransport {
+    async fn send(&self, req: HttpRequest) -> Result<HttpResponse> {
+        self.captured_requests.lock().unwrap().push(req.clone());
+        Ok(self.response.clone())
+    }
+}
+
+// 本番用: reqwest を使った実装例
+struct ReqwestTransport {
+    client: reqwest::Client,
+    base_url: String,
+}
+
+#[async_trait::async_trait]
+impl HttpTransport for ReqwestTransport {
+    async fn send(&self, req: HttpRequest) -> Result<HttpResponse> {
+        let url = format!("{}{}", self.base_url, req.url);
+        let method = match req.method {
+            Method::Get => reqwest::Method::GET,
+            Method::Post => reqwest::Method::POST,
+        };
+
+        let response = self.client
+            .request(method, &url)
+            .body(req.body.unwrap_or_default())
+            .send()
+            .await?;
+
+        Ok(HttpResponse {
+            status: StatusCode(response.status().as_u16()),
+            headers: Default::default(),
+            body: response.text().await?,
+        })
+    }
 }
 ```
 
