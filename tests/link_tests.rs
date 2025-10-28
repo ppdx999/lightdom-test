@@ -118,7 +118,12 @@ async fn test_link_without_href() {
     let result = dom.link("#invalid-link");
 
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("no href attribute"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("no href attribute")
+    );
 }
 
 #[tokio::test]

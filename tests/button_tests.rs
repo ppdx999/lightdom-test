@@ -125,7 +125,12 @@ async fn test_button_without_form() {
 
     let result = button.click().await;
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("not associated with a form"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("not associated with a form")
+    );
 }
 
 #[tokio::test]

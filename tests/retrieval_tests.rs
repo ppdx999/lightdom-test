@@ -159,7 +159,12 @@ async fn test_element_not_found() {
     let result = dom.element("#nonexistent");
 
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Element not found"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("Element not found")
+    );
 }
 
 // ============================================

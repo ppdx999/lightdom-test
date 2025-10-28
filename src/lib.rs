@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use scraper::{Html, Selector};
 use std::collections::{HashMap, HashSet};
@@ -126,10 +126,10 @@ pub struct Form<T: HttpTransport> {
     fields: HashMap<String, String>,
     field_types: HashMap<String, String>,
     // checkbox/radio の情報
-    checkboxes: HashMap<String, Vec<String>>,  // name -> [values]
-    radios: HashMap<String, Vec<String>>,      // name -> [values]
-    checked_checkboxes: HashSet<String>,       // "name=value" のセット
-    selected_radios: HashMap<String, String>,  // name -> selected value
+    checkboxes: HashMap<String, Vec<String>>, // name -> [values]
+    radios: HashMap<String, Vec<String>>,     // name -> [values]
+    checked_checkboxes: HashSet<String>,      // "name=value" のセット
+    selected_radios: HashMap<String, String>, // name -> selected value
     transport: Arc<T>,
 }
 
@@ -151,8 +151,8 @@ impl<T: HttpTransport> Form<T> {
             return Err(anyhow!("Invalid locator: {}", locator));
         };
 
-        let form_selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let form_selector =
+            Selector::parse(&selector_str).map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let form_element = document
             .select(&form_selector)
@@ -174,8 +174,8 @@ impl<T: HttpTransport> Form<T> {
             .to_string();
 
         // フォーム内の hidden フィールドを事前に収集
-        let input_selector = Selector::parse("input")
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let input_selector =
+            Selector::parse("input").map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let mut fields = HashMap::new();
         let mut field_types = HashMap::new();
@@ -199,7 +199,8 @@ impl<T: HttpTransport> Form<T> {
                     "checkbox" => {
                         // checkbox の情報を収集
                         if let Some(value) = input.value().attr("value") {
-                            checkboxes.entry(name.to_string())
+                            checkboxes
+                                .entry(name.to_string())
                                 .or_insert_with(Vec::new)
                                 .push(value.to_string());
 
@@ -212,7 +213,8 @@ impl<T: HttpTransport> Form<T> {
                     "radio" => {
                         // radio の情報を収集
                         if let Some(value) = input.value().attr("value") {
-                            radios.entry(name.to_string())
+                            radios
+                                .entry(name.to_string())
                                 .or_insert_with(Vec::new)
                                 .push(value.to_string());
 
@@ -230,16 +232,16 @@ impl<T: HttpTransport> Form<T> {
         }
 
         // textareaとselectも収集
-        let textarea_selector = Selector::parse("textarea")
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let textarea_selector =
+            Selector::parse("textarea").map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
         for textarea in form_element.select(&textarea_selector) {
             if let Some(name) = textarea.value().attr("name") {
                 field_types.insert(name.to_string(), "textarea".to_string());
             }
         }
 
-        let select_selector = Selector::parse("select")
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let select_selector =
+            Selector::parse("select").map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
         for select in form_element.select(&select_selector) {
             if let Some(name) = select.value().attr("name") {
                 field_types.insert(name.to_string(), "select".to_string());
@@ -267,7 +269,9 @@ impl<T: HttpTransport> Form<T> {
     /// フィールドに値を入力
     pub fn fill(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
         // フィールドが存在するかチェック
-        let field_type = self.field_types.get(field_name)
+        let field_type = self
+            .field_types
+            .get(field_name)
             .ok_or_else(|| anyhow!("Field '{}' does not exist in the form", field_name))?;
 
         // type に応じたバリデーション
@@ -283,28 +287,48 @@ impl<T: HttpTransport> Form<T> {
                 }
             }
             "url" => {
-                if !value.starts_with("http://") && !value.starts_with("https://") && !value.is_empty() {
-                    return Err(anyhow!("Invalid URL format for field '{}'. Must start with http:// or https://", field_name));
+                if !value.starts_with("http://")
+                    && !value.starts_with("https://")
+                    && !value.is_empty()
+                {
+                    return Err(anyhow!(
+                        "Invalid URL format for field '{}'. Must start with http:// or https://",
+                        field_name
+                    ));
                 }
             }
             "tel" => {
                 // 電話番号は数字、ハイフン、スペース、括弧、+のみ許可
-                if !value.chars().all(|c| c.is_numeric() || c == '-' || c == ' ' || c == '(' || c == ')' || c == '+') {
-                    return Err(anyhow!("Invalid phone number format for field '{}'", field_name));
+                if !value.chars().all(|c| {
+                    c.is_numeric() || c == '-' || c == ' ' || c == '(' || c == ')' || c == '+'
+                }) {
+                    return Err(anyhow!(
+                        "Invalid phone number format for field '{}'",
+                        field_name
+                    ));
                 }
             }
             "date" => {
                 // YYYY-MM-DD形式をチェック
                 let parts: Vec<&str> = value.split('-').collect();
                 if parts.len() != 3 {
-                    return Err(anyhow!("Invalid date format for field '{}'. Expected YYYY-MM-DD", field_name));
+                    return Err(anyhow!(
+                        "Invalid date format for field '{}'. Expected YYYY-MM-DD",
+                        field_name
+                    ));
                 }
                 if parts[0].len() != 4 || parts[1].len() != 2 || parts[2].len() != 2 {
-                    return Err(anyhow!("Invalid date format for field '{}'. Expected YYYY-MM-DD", field_name));
+                    return Err(anyhow!(
+                        "Invalid date format for field '{}'. Expected YYYY-MM-DD",
+                        field_name
+                    ));
                 }
                 for part in &parts {
                     if part.parse::<u32>().is_err() {
-                        return Err(anyhow!("Invalid date format for field '{}'. Expected YYYY-MM-DD", field_name));
+                        return Err(anyhow!(
+                            "Invalid date format for field '{}'. Expected YYYY-MM-DD",
+                            field_name
+                        ));
                     }
                 }
             }
@@ -313,62 +337,86 @@ impl<T: HttpTransport> Form<T> {
             }
         }
 
-        self.fields.insert(field_name.to_string(), value.to_string());
+        self.fields
+            .insert(field_name.to_string(), value.to_string());
         Ok(self)
     }
 
     /// チェックボックスをチェックする
     pub fn check(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
         // チェックボックスが存在するかチェック
-        let checkbox_values = self.checkboxes.get(field_name)
+        let checkbox_values = self
+            .checkboxes
+            .get(field_name)
             .ok_or_else(|| anyhow!("Checkbox '{}' does not exist in the form", field_name))?;
 
         // 指定された値が存在するかチェック
         if !checkbox_values.contains(&value.to_string()) {
-            return Err(anyhow!("Checkbox '{}' does not have value '{}'", field_name, value));
+            return Err(anyhow!(
+                "Checkbox '{}' does not have value '{}'",
+                field_name,
+                value
+            ));
         }
 
         // チェック状態に設定
-        self.checked_checkboxes.insert(format!("{}={}", field_name, value));
+        self.checked_checkboxes
+            .insert(format!("{}={}", field_name, value));
         Ok(self)
     }
 
     /// チェックボックスのチェックを外す
     pub fn uncheck(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
         // チェックボックスが存在するかチェック
-        let checkbox_values = self.checkboxes.get(field_name)
+        let checkbox_values = self
+            .checkboxes
+            .get(field_name)
             .ok_or_else(|| anyhow!("Checkbox '{}' does not exist in the form", field_name))?;
 
         // 指定された値が存在するかチェック
         if !checkbox_values.contains(&value.to_string()) {
-            return Err(anyhow!("Checkbox '{}' does not have value '{}'", field_name, value));
+            return Err(anyhow!(
+                "Checkbox '{}' does not have value '{}'",
+                field_name,
+                value
+            ));
         }
 
         // チェックを外す
-        self.checked_checkboxes.remove(&format!("{}={}", field_name, value));
+        self.checked_checkboxes
+            .remove(&format!("{}={}", field_name, value));
         Ok(self)
     }
 
     /// ラジオボタンを選択する
     pub fn choose(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
         // ラジオボタンが存在するかチェック
-        let radio_values = self.radios.get(field_name)
+        let radio_values = self
+            .radios
+            .get(field_name)
             .ok_or_else(|| anyhow!("Radio button '{}' does not exist in the form", field_name))?;
 
         // 指定された値が存在するかチェック
         if !radio_values.contains(&value.to_string()) {
-            return Err(anyhow!("Radio button '{}' does not have value '{}'", field_name, value));
+            return Err(anyhow!(
+                "Radio button '{}' does not have value '{}'",
+                field_name,
+                value
+            ));
         }
 
         // ラジオボタンを選択
-        self.selected_radios.insert(field_name.to_string(), value.to_string());
+        self.selected_radios
+            .insert(field_name.to_string(), value.to_string());
         Ok(self)
     }
 
     /// セレクトボックスのオプションを選択する
     pub fn select(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
         // セレクトボックスが存在するかチェック
-        let field_type = self.field_types.get(field_name)
+        let field_type = self
+            .field_types
+            .get(field_name)
             .ok_or_else(|| anyhow!("Select '{}' does not exist in the form", field_name))?;
 
         if field_type != "select" {
@@ -376,7 +424,8 @@ impl<T: HttpTransport> Form<T> {
         }
 
         // 値を設定（オプションの存在チェックは実際のHTMLから行うのが理想だが、簡略化のため省略）
-        self.fields.insert(field_name.to_string(), value.to_string());
+        self.fields
+            .insert(field_name.to_string(), value.to_string());
         Ok(self)
     }
 
@@ -440,8 +489,8 @@ impl<T: HttpTransport> Button<T> {
             "button".to_string()
         };
 
-        let button_selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let button_selector =
+            Selector::parse(&selector_str).map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let button_element = if locator.starts_with('@') || locator.starts_with('#') {
             // 属性ベースの検索
@@ -468,10 +517,14 @@ impl<T: HttpTransport> Button<T> {
         for ancestor in button_element.ancestors() {
             if let Some(element) = ancestor.value().as_element() {
                 if element.name() == "form" {
-                    form_action = ancestor.value().as_element()
+                    form_action = ancestor
+                        .value()
+                        .as_element()
                         .and_then(|e| e.attr("action"))
                         .map(|s| s.to_string());
-                    form_method = ancestor.value().as_element()
+                    form_method = ancestor
+                        .value()
+                        .as_element()
                         .and_then(|e| e.attr("method"))
                         .map(|s| s.to_string());
                     break;
@@ -488,7 +541,9 @@ impl<T: HttpTransport> Button<T> {
 
     /// ボタンをクリック
     pub async fn click(&self) -> Result<HttpResponse> {
-        let action = self.form_action.as_ref()
+        let action = self
+            .form_action
+            .as_ref()
             .ok_or_else(|| anyhow!("Button is not associated with a form"))?;
 
         let req = HttpRequest {
@@ -529,8 +584,8 @@ impl<T: HttpTransport> Link<T> {
             "a".to_string()
         };
 
-        let link_selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let link_selector =
+            Selector::parse(&selector_str).map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let link_element = if locator.starts_with('@') || locator.starts_with('#') {
             // 属性ベースの検索
@@ -556,10 +611,7 @@ impl<T: HttpTransport> Link<T> {
             .ok_or_else(|| anyhow!("Link has no href attribute"))?
             .to_string();
 
-        Ok(Self {
-            href,
-            transport,
-        })
+        Ok(Self { href, transport })
     }
 
     /// リンクをクリック
@@ -587,8 +639,8 @@ impl Element {
     fn find(html: &str, locator: &str) -> Result<Self> {
         let document = Html::parse_document(html);
         let selector_str = Self::locator_to_selector(locator)?;
-        let selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let selector =
+            Selector::parse(&selector_str).map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let element = document
             .select(&selector)
@@ -623,7 +675,10 @@ impl Element {
         } else if locator.starts_with('.') {
             Ok(locator.to_string())
         } else {
-            Err(anyhow!("Invalid locator: {}. Must start with @, #, or .", locator))
+            Err(anyhow!(
+                "Invalid locator: {}. Must start with @, #, or .",
+                locator
+            ))
         }
     }
 
@@ -711,8 +766,8 @@ impl Table {
     fn find(html: &str, locator: &str) -> Result<Self> {
         let document = Html::parse_document(html);
         let selector_str = Element::locator_to_selector(locator)?;
-        let table_selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let table_selector =
+            Selector::parse(&selector_str).map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let table_element = document
             .select(&table_selector)
@@ -796,8 +851,8 @@ impl List {
     fn find(html: &str, locator: &str) -> Result<Self> {
         let document = Html::parse_document(html);
         let selector_str = Element::locator_to_selector(locator)?;
-        let list_selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let list_selector =
+            Selector::parse(&selector_str).map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let list_element = document
             .select(&list_selector)
