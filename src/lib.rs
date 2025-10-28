@@ -138,9 +138,9 @@ impl<T: HttpTransport> Form<T> {
         let document = Html::parse_document(html);
 
         // ロケータに基づいてセレクタを生成
-        let selector_str = if locator.starts_with('@') {
+        let selector_str = if let Some(test_id) = locator.strip_prefix('@') {
             // test-id 属性
-            format!("form[test-id=\"{}\"]", &locator[1..])
+            format!("form[test-id=\"{}\"]", test_id)
         } else if locator.starts_with('#') {
             // id 属性
             format!("form{}", locator)
@@ -201,7 +201,7 @@ impl<T: HttpTransport> Form<T> {
                         if let Some(value) = input.value().attr("value") {
                             checkboxes
                                 .entry(name.to_string())
-                                .or_insert_with(Vec::new)
+                                .or_default()
                                 .push(value.to_string());
 
                             // checkedがtrueならチェック済みとして記録
@@ -215,7 +215,7 @@ impl<T: HttpTransport> Form<T> {
                         if let Some(value) = input.value().attr("value") {
                             radios
                                 .entry(name.to_string())
-                                .or_insert_with(Vec::new)
+                                .or_default()
                                 .push(value.to_string());
 
                             // checkedがtrueなら選択済みとして記録
@@ -478,9 +478,9 @@ impl<T: HttpTransport> Button<T> {
         let document = Html::parse_document(html);
 
         // ロケータに基づいてセレクタを生成
-        let selector_str = if locator.starts_with('@') {
+        let selector_str = if let Some(test_id) = locator.strip_prefix('@') {
             // test-id 属性
-            format!("button[test-id=\"{}\"]", &locator[1..])
+            format!("button[test-id=\"{}\"]", test_id)
         } else if locator.starts_with('#') {
             // id 属性
             format!("button{}", locator)
@@ -515,20 +515,20 @@ impl<T: HttpTransport> Button<T> {
 
         // 親要素を辿ってformを探す
         for ancestor in button_element.ancestors() {
-            if let Some(element) = ancestor.value().as_element() {
-                if element.name() == "form" {
-                    form_action = ancestor
-                        .value()
-                        .as_element()
-                        .and_then(|e| e.attr("action"))
-                        .map(|s| s.to_string());
-                    form_method = ancestor
-                        .value()
-                        .as_element()
-                        .and_then(|e| e.attr("method"))
-                        .map(|s| s.to_string());
-                    break;
-                }
+            if let Some(element) = ancestor.value().as_element()
+                && element.name() == "form"
+            {
+                form_action = ancestor
+                    .value()
+                    .as_element()
+                    .and_then(|e| e.attr("action"))
+                    .map(|s| s.to_string());
+                form_method = ancestor
+                    .value()
+                    .as_element()
+                    .and_then(|e| e.attr("method"))
+                    .map(|s| s.to_string());
+                break;
             }
         }
 
@@ -573,9 +573,9 @@ impl<T: HttpTransport> Link<T> {
         let document = Html::parse_document(html);
 
         // ロケータに基づいてセレクタを生成
-        let selector_str = if locator.starts_with('@') {
+        let selector_str = if let Some(test_id) = locator.strip_prefix('@') {
             // test-id 属性
-            format!("a[test-id=\"{}\"]", &locator[1..])
+            format!("a[test-id=\"{}\"]", test_id)
         } else if locator.starts_with('#') {
             // id 属性
             format!("a{}", locator)
@@ -668,11 +668,9 @@ impl Element {
     }
 
     fn locator_to_selector(locator: &str) -> Result<String> {
-        if locator.starts_with('@') {
-            Ok(format!("[test-id=\"{}\"]", &locator[1..]))
-        } else if locator.starts_with('#') {
-            Ok(locator.to_string())
-        } else if locator.starts_with('.') {
+        if let Some(test_id) = locator.strip_prefix('@') {
+            Ok(format!("[test-id=\"{}\"]", test_id))
+        } else if locator.starts_with('#') || locator.starts_with('.') {
             Ok(locator.to_string())
         } else {
             Err(anyhow!(
