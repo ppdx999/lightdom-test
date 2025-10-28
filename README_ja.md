@@ -63,10 +63,11 @@ impl HttpTransport for AxumTransport {
 async fn login_flow() -> anyhow::Result<()> {
     let app = app(); // axum::Router
 
-    let form = Dom::new(transporter).parse(login_page().into_string()?)?
-        .form("@login-form")?  // test-id="login-form" のフォームを取得
-        .fill("username", "alice")
-        .fill("password", "secret");
+    let mut form = Dom::new(transporter).parse(login_page().into_string()?)?
+        .form("@login-form")?;  // test-id="login-form" のフォームを取得
+
+    form.fill("username", "alice")?
+        .fill("password", "secret")?;
 
     let (status, body) = form.submit(&app).await?;
     assert!(status.is_success());
@@ -120,8 +121,32 @@ async fn login_flow() -> anyhow::Result<()> {
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| fill | (field_name: &str, value: &str) -> &mut Form | 指定されたフィールドに値を入力します。 |
-| submit | (&self, app: &Router) -> anyhow::Result<HttpResponse> | フォームを送信し、HTTP レスポンスを返します。 |
+| fill | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | 指定されたフィールドに値を入力します。フィールドが存在しない場合や、入力値がフィールドの型に適合しない場合はエラーを返します。 |
+| submit | (&self) -> anyhow::Result<HttpResponse> | フォームを送信し、HTTP レスポンスを返します。 |
+
+#### fill メソッドのバリデーション
+
+`fill` メソッドは、フィールドの `type` 属性に応じて入力値を自動的にバリデーションします：
+
+| type 属性 | バリデーション内容 |
+|-----------|-------------------|
+| email | `@` を含むかチェック |
+| number | 数値として解析可能かチェック |
+| url | `http://` または `https://` で始まるかチェック |
+| tel | 数字、ハイフン、スペース、括弧、`+` のみ許可 |
+| date | `YYYY-MM-DD` 形式かチェック |
+| text, password, hidden, textarea, select など | バリデーションなし |
+
+```rust
+// 正常なケース
+form.fill("email", "user@example.com")?;  // OK
+form.fill("age", "25")?;                   // OK
+
+// エラーケース
+form.fill("email", "invalid-email")?;     // Err: Invalid email format
+form.fill("age", "not-a-number")?;         // Err: Invalid number format
+form.fill("nonexistent", "value")?;        // Err: Field does not exist
+```
 
 ### Button
 `Button` は HTML ボタンを表し、クリック操作を行うためのメソッドを提供します。
