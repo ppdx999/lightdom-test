@@ -222,6 +222,11 @@ impl<T: HttpTransport> Form<T> {
         })
     }
 
+    /// フィールドがフォーム内に存在するかチェック
+    pub fn is_exist(&self, field_name: &str) -> bool {
+        self.field_types.contains_key(field_name)
+    }
+
     /// フィールドに値を入力
     pub fn fill(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
         // フィールドが存在するかチェック

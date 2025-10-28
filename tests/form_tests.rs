@@ -500,7 +500,7 @@ async fn test_form_uncheck_checkbox() -> Result<()> {
 
     let transport = MockTransport::new(default_response());
     let dom = Dom::new(transport.clone()).parse(html.to_string())?;
-    let mut form = dom.form("#form")?;
+    let form = dom.form("#form")?;
 
     // 初期状態ではchecked
     form.submit().await?;
@@ -573,7 +573,7 @@ async fn test_form_choose_radio_overwrite() -> Result<()> {
 
     let transport = MockTransport::new(default_response());
     let dom = Dom::new(transport.clone()).parse(html.to_string())?;
-    let mut form = dom.form("#form")?;
+    let form = dom.form("#form")?;
 
     // 初期状態ではmediumが選択されている
     form.submit().await?;
@@ -691,5 +691,61 @@ async fn test_form_complex_submission() -> Result<()> {
     assert!(body.contains("notifications=sms"));
     assert!(body.contains("plan=premium"));
     assert!(body.contains("country=jp"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_form_is_exist() -> Result<()> {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <input type="text" name="username">
+            <input type="email" name="email">
+            <input type="checkbox" name="agree" value="yes">
+            <input type="radio" name="gender" value="male">
+            <select name="country">
+                <option value="us">US</option>
+            </select>
+            <textarea name="bio"></textarea>
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport).parse(html.to_string())?;
+    let form = dom.form("#form")?;
+
+    // 存在するフィールド
+    assert!(form.is_exist("username"));
+    assert!(form.is_exist("email"));
+    assert!(form.is_exist("agree"));
+    assert!(form.is_exist("gender"));
+    assert!(form.is_exist("country"));
+    assert!(form.is_exist("bio"));
+
+    // 存在しないフィールド
+    assert!(!form.is_exist("nonexistent"));
+    assert!(!form.is_exist("password"));
+    assert!(!form.is_exist(""));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_form_is_exist_with_hidden() -> Result<()> {
+    let html = r#"
+        <form id="form" action="/submit" method="post">
+            <input type="hidden" name="_csrf" value="token">
+            <input type="text" name="username">
+        </form>
+    "#;
+
+    let transport = MockTransport::new(default_response());
+    let dom = Dom::new(transport).parse(html.to_string())?;
+    let form = dom.form("#form")?;
+
+    // hiddenフィールドも検出できる
+    assert!(form.is_exist("_csrf"));
+    assert!(form.is_exist("username"));
+    assert!(!form.is_exist("other"));
+
     Ok(())
 }

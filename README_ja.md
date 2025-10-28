@@ -121,6 +121,7 @@ async fn login_flow() -> anyhow::Result<()> {
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
+| is_exist | (field_name: &str) -> bool | 指定されたフィールドがフォーム内に存在するかチェックします。 |
 | fill | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | 指定されたフィールドに値を入力します。フィールドが存在しない場合や、入力値がフィールドの型に適合しない場合はエラーを返します。 |
 | check | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | チェックボックスをチェックします。複数の値を持つチェックボックスの場合は、複数回呼び出すことで複数選択できます。 |
 | uncheck | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | チェックボックスのチェックを外します。 |
@@ -150,6 +151,22 @@ form.fill("age", "25")?;                   // OK
 form.fill("email", "invalid-email")?;     // Err: Invalid email format
 form.fill("age", "not-a-number")?;         // Err: Invalid number format
 form.fill("nonexistent", "value")?;        // Err: Field does not exist
+```
+
+#### is_exist メソッドの使用例
+
+```rust
+// フィールドの存在チェック
+if form.is_exist("username") {
+    form.fill("username", "alice")?;
+}
+
+// 条件付き処理
+if form.is_exist("email") && form.is_exist("phone") {
+    // 両方のフィールドが存在する場合のみ入力
+    form.fill("email", "alice@example.com")?
+        .fill("phone", "123-456-7890")?;
+}
 ```
 
 #### チェックボックス・ラジオボタン・セレクトボックスの使用例
