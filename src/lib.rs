@@ -79,6 +79,43 @@ impl<T: HttpTransport> Dom<T> {
     pub fn link(&self, locator: &str) -> Result<Link<T>> {
         Link::find(&self.html, locator, Arc::clone(&self.transport))
     }
+
+    /// 要素を取得
+    pub fn element(&self, locator: &str) -> Result<Element> {
+        Element::find(&self.html, locator)
+    }
+
+    /// 複数の要素を取得
+    pub fn elements(&self, locator: &str) -> Vec<Element> {
+        Element::find_all(&self.html, locator)
+    }
+
+    /// 要素のテキストを取得
+    pub fn text(&self, locator: &str) -> Result<String> {
+        let element = self.element(locator)?;
+        Ok(element.text())
+    }
+
+    /// 複数要素のテキストを取得
+    pub fn texts(&self, locator: &str) -> Vec<String> {
+        self.elements(locator).iter().map(|e| e.text()).collect()
+    }
+
+    /// 要素の内部HTMLを取得
+    pub fn inner_html(&self, locator: &str) -> Result<String> {
+        let element = self.element(locator)?;
+        Ok(element.inner_html())
+    }
+
+    /// テーブルを取得
+    pub fn table(&self, locator: &str) -> Result<Table> {
+        Table::find(&self.html, locator)
+    }
+
+    /// リストを取得
+    pub fn list(&self, locator: &str) -> Result<List> {
+        List::find(&self.html, locator)
+    }
 }
 
 /// HTML フォームを表す構造体
@@ -535,5 +572,273 @@ impl<T: HttpTransport> Link<T> {
         };
 
         self.transport.send(req).await
+    }
+}
+
+/// HTML要素を表す構造体
+#[derive(Debug, Clone)]
+pub struct Element {
+    text_content: String,
+    inner_html: String,
+    attributes: HashMap<String, String>,
+}
+
+impl Element {
+    fn find(html: &str, locator: &str) -> Result<Self> {
+        let document = Html::parse_document(html);
+        let selector_str = Self::locator_to_selector(locator)?;
+        let selector = Selector::parse(&selector_str)
+            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+
+        let element = document
+            .select(&selector)
+            .next()
+            .ok_or_else(|| anyhow!("Element not found: {}", locator))?;
+
+        Ok(Self::from_element_ref(element))
+    }
+
+    fn find_all(html: &str, locator: &str) -> Vec<Self> {
+        let document = Html::parse_document(html);
+        let selector_str = match Self::locator_to_selector(locator) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+        let selector = match Selector::parse(&selector_str) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+
+        document
+            .select(&selector)
+            .map(Self::from_element_ref)
+            .collect()
+    }
+
+    fn locator_to_selector(locator: &str) -> Result<String> {
+        if locator.starts_with('@') {
+            Ok(format!("[test-id=\"{}\"]", &locator[1..]))
+        } else if locator.starts_with('#') {
+            Ok(locator.to_string())
+        } else if locator.starts_with('.') {
+            Ok(locator.to_string())
+        } else {
+            Err(anyhow!("Invalid locator: {}. Must start with @, #, or .", locator))
+        }
+    }
+
+    fn from_element_ref(element: scraper::element_ref::ElementRef) -> Self {
+        let text_content = element.text().collect::<String>();
+        let inner_html = element.inner_html();
+        let mut attributes = HashMap::new();
+
+        for (name, value) in element.value().attrs() {
+            attributes.insert(name.to_string(), value.to_string());
+        }
+
+        Self {
+            text_content,
+            inner_html,
+            attributes,
+        }
+    }
+
+    /// 要素のテキストコンテンツを取得
+    pub fn text(&self) -> String {
+        self.text_content.clone()
+    }
+
+    /// 指定された属性の値を取得
+    pub fn attr(&self, name: &str) -> Option<String> {
+        self.attributes.get(name).cloned()
+    }
+
+    /// 指定されたクラスを持っているかチェック
+    pub fn has_class(&self, class: &str) -> bool {
+        if let Some(classes) = self.attributes.get("class") {
+            classes.split_whitespace().any(|c| c == class)
+        } else {
+            false
+        }
+    }
+
+    /// 要素の内部HTMLを取得
+    pub fn inner_html(&self) -> String {
+        self.inner_html.clone()
+    }
+}
+
+/// テーブルの行を表す構造体
+#[derive(Debug, Clone)]
+pub struct Row {
+    cells: Vec<String>,
+    headers: Vec<String>,
+}
+
+impl Row {
+    /// 行内の全セルのテキストを取得
+    pub fn cells(&self) -> Vec<String> {
+        self.cells.clone()
+    }
+
+    /// 指定されたインデックスのセルのテキストを取得
+    pub fn cell(&self, index: usize) -> Result<String> {
+        self.cells
+            .get(index)
+            .cloned()
+            .ok_or_else(|| anyhow!("Cell index {} out of bounds", index))
+    }
+
+    /// ヘッダー名を指定してセルのテキストを取得
+    pub fn get(&self, column: &str) -> Result<String> {
+        let index = self
+            .headers
+            .iter()
+            .position(|h| h == column)
+            .ok_or_else(|| anyhow!("Column '{}' not found", column))?;
+        self.cell(index)
+    }
+}
+
+/// HTMLテーブルを表す構造体
+#[derive(Debug, Clone)]
+pub struct Table {
+    headers: Vec<String>,
+    rows: Vec<Row>,
+}
+
+impl Table {
+    fn find(html: &str, locator: &str) -> Result<Self> {
+        let document = Html::parse_document(html);
+        let selector_str = Element::locator_to_selector(locator)?;
+        let table_selector = Selector::parse(&selector_str)
+            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+
+        let table_element = document
+            .select(&table_selector)
+            .next()
+            .ok_or_else(|| anyhow!("Table not found: {}", locator))?;
+
+        // ヘッダーの取得
+        let th_selector = Selector::parse("thead th, tr th").unwrap();
+        let headers: Vec<String> = table_element
+            .select(&th_selector)
+            .map(|th| th.text().collect::<String>().trim().to_string())
+            .collect();
+
+        // 行の取得
+        let tr_selector = Selector::parse("tbody tr, tr").unwrap();
+        let td_selector = Selector::parse("td").unwrap();
+
+        let rows: Vec<Row> = table_element
+            .select(&tr_selector)
+            .filter_map(|tr| {
+                let cells: Vec<String> = tr
+                    .select(&td_selector)
+                    .map(|td| td.text().collect::<String>().trim().to_string())
+                    .collect();
+
+                if cells.is_empty() {
+                    None
+                } else {
+                    Some(Row {
+                        cells,
+                        headers: headers.clone(),
+                    })
+                }
+            })
+            .collect();
+
+        Ok(Self { headers, rows })
+    }
+
+    /// テーブルのヘッダーを取得
+    pub fn headers(&self) -> Vec<String> {
+        self.headers.clone()
+    }
+
+    /// テーブルの全行を取得
+    pub fn rows(&self) -> Vec<Row> {
+        self.rows.clone()
+    }
+
+    /// 指定されたインデックスの行を取得
+    pub fn row(&self, index: usize) -> Result<Row> {
+        self.rows
+            .get(index)
+            .cloned()
+            .ok_or_else(|| anyhow!("Row index {} out of bounds", index))
+    }
+
+    /// 指定された行・列のセルのテキストを取得
+    pub fn cell(&self, row: usize, col: usize) -> Result<String> {
+        let row_data = self.row(row)?;
+        row_data.cell(col)
+    }
+
+    /// 指定された列の値が一致する行を検索
+    pub fn find_row(&self, column: &str, value: &str) -> Result<Row> {
+        self.rows
+            .iter()
+            .find(|row| row.get(column).map(|v| v == value).unwrap_or(false))
+            .cloned()
+            .ok_or_else(|| anyhow!("Row with {}='{}' not found", column, value))
+    }
+}
+
+/// HTMLリストを表す構造体
+#[derive(Debug, Clone)]
+pub struct List {
+    items: Vec<String>,
+}
+
+impl List {
+    fn find(html: &str, locator: &str) -> Result<Self> {
+        let document = Html::parse_document(html);
+        let selector_str = Element::locator_to_selector(locator)?;
+        let list_selector = Selector::parse(&selector_str)
+            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+
+        let list_element = document
+            .select(&list_selector)
+            .next()
+            .ok_or_else(|| anyhow!("List not found: {}", locator))?;
+
+        // li要素を取得
+        let li_selector = Selector::parse("li").unwrap();
+        let items: Vec<String> = list_element
+            .select(&li_selector)
+            .map(|li| li.text().collect::<String>().trim().to_string())
+            .collect();
+
+        Ok(Self { items })
+    }
+
+    /// リストの全アイテムのテキストを取得
+    pub fn items(&self) -> Vec<String> {
+        self.items.clone()
+    }
+
+    /// 指定されたインデックスのアイテムのテキストを取得
+    pub fn item(&self, index: usize) -> Result<String> {
+        self.items
+            .get(index)
+            .cloned()
+            .ok_or_else(|| anyhow!("Item index {} out of bounds", index))
+    }
+
+    /// リストアイテムの数を返す
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    /// リストが空かどうかを返す
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
+    /// 指定されたテキストを含むアイテムが存在するかチェック
+    pub fn contains(&self, text: &str) -> bool {
+        self.items.iter().any(|item| item == text)
     }
 }
