@@ -94,25 +94,25 @@ async fn test_login_flow() -> Result<()> {
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| new | (transport: impl HttpTransport) -> Dom | 新しい `Dom` インスタンスを作成します。 |
-| parse | (html: String) -> anyhow::Result<Dom> | HTML 文字列をパースし、`Dom` インスタンスを返します。 |
-| form | (locator: &str) -> anyhow::Result<Form> | 指定されたロケータに基づいてフォームを取得します。 |
-| button | (locator: &str) -> anyhow::Result<Button> | 指定されたロケータに基づいてボタンを取得します。 |
-| link | (locator: &str) -> anyhow::Result<Link> | 指定されたロケータに基づいてリンクを取得します。 |
-| element | (locator: &str) -> anyhow::Result<Element> | 指定されたロケータの要素を取得します。 |
-| elements | (locator: &str) -> Vec<Element> | 指定されたロケータに一致する全要素を取得します。 |
-| text | (locator: &str) -> anyhow::Result<String> | 指定されたロケータの要素のテキストを取得します。 |
-| texts | (locator: &str) -> Vec<String> | 指定されたロケータに一致する全要素のテキストを取得します。 |
-| inner_html | (locator: &str) -> anyhow::Result<String> | 指定されたロケータの要素の内部HTMLを取得します。 |
-| table | (locator: &str) -> anyhow::Result<Table> | 指定されたロケータのテーブルを取得します。 |
-| list | (locator: &str) -> anyhow::Result<List> | 指定されたロケータのリストを取得します。 |
-| title | () -> anyhow::Result<String> | `<title>` タグの内容を取得します。 |
-| meta | (name: &str) -> anyhow::Result<String> | メタタグの content 属性を取得します。 |
-| exists | (locator: &str) -> bool | 指定されたロケータの要素が存在するかチェックします。 |
-| contains_text | (text: &str) -> bool | 指定されたテキストを含む要素が存在するかチェックします。 |
-| select_element | (locator: &str) -> anyhow::Result<SelectElement> | 指定されたロケータの select 要素を取得します。 |
-| image | (locator: &str) -> anyhow::Result<Image> | 指定されたロケータの画像を取得します。 |
-| images | (locator: &str) -> Vec<Image> | 指定されたロケータに一致する全画像を取得します。 |
+| new | `(transport: impl HttpTransport) -> Dom` | 新しい `Dom` インスタンスを作成します。 |
+| parse | `(html: String) -> anyhow::Result<Dom>` | HTML 文字列をパースし、`Dom` インスタンスを返します。 |
+| form | `(locator: &str) -> anyhow::Result<Form>` | 指定されたロケータに基づいてフォームを取得します。 |
+| button | `(locator: &str) -> anyhow::Result<Button>` | 指定されたロケータに基づいてボタンを取得します。 |
+| link | `(locator: &str) -> anyhow::Result<Link>` | 指定されたロケータに基づいてリンクを取得します。 |
+| element | `(locator: &str) -> anyhow::Result<Element>` | 指定されたロケータの要素を取得します。 |
+| elements | `(locator: &str) -> Vec<Element>` | 指定されたロケータに一致する全要素を取得します。 |
+| text | `(locator: &str) -> anyhow::Result<String>` | 指定されたロケータの要素のテキストを取得します。 |
+| texts | `(locator: &str) -> Vec<String>` | 指定されたロケータに一致する全要素のテキストを取得します。 |
+| inner_html | `(locator: &str) -> anyhow::Result<String>` | 指定されたロケータの要素の内部HTMLを取得します。 |
+| table | `(locator: &str) -> anyhow::Result<Table>` | 指定されたロケータのテーブルを取得します。 |
+| list | `(locator: &str) -> anyhow::Result<List>` | 指定されたロケータのリストを取得します。 |
+| title | `() -> anyhow::Result<String>` | `<title>` タグの内容を取得します。 |
+| meta | `(name: &str) -> anyhow::Result<String>` | メタタグの content 属性を取得します。 |
+| exists | `(locator: &str) -> bool` | 指定されたロケータの要素が存在するかチェックします。 |
+| contains_text | `(text: &str) -> bool` | 指定されたテキストを含む要素が存在するかチェックします。 |
+| select_element | `(locator: &str) -> anyhow::Result<SelectElement>` | 指定されたロケータの select 要素を取得します。 |
+| image | `(locator: &str) -> anyhow::Result<Image>` | 指定されたロケータの画像を取得します。 |
+| images | `(locator: &str) -> Vec<Image>` | 指定されたロケータに一致する全画像を取得します。 |
 
 
 `form`で指定できるロケータの種類は以下の通りです。
@@ -145,14 +145,14 @@ async fn test_login_flow() -> Result<()> {
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| is_exist | (field_name: &str) -> bool | 指定されたフィールドがフォーム内に存在するかチェックします。 |
-| get_value | (field_name: &str) -> anyhow::Result<String> | 指定されたフィールドの現在値を取得します。 |
-| fill | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | 指定されたフィールドに値を入力します。フィールドが存在しない場合や、入力値がフィールドの型に適合しない場合はエラーを返します。 |
-| check | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | チェックボックスをチェックします。複数の値を持つチェックボックスの場合は、複数回呼び出すことで複数選択できます。 |
-| uncheck | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | チェックボックスのチェックを外します。 |
-| choose | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | ラジオボタンを選択します。同じname属性の他のラジオボタンの選択は自動的に解除されます。 |
-| select | (field_name: &str, value: &str) -> anyhow::Result<&mut Form> | セレクトボックスのオプションを選択します。 |
-| submit | (&self) -> anyhow::Result<HttpResponse> | フォームを送信し、HTTP レスポンスを返します。 |
+| is_exist | `(field_name: &str) -> bool` | 指定されたフィールドがフォーム内に存在するかチェックします。 |
+| get_value | `(field_name: &str) -> anyhow::Result<String>` | 指定されたフィールドの現在値を取得します。 |
+| fill | `(field_name: &str, value: &str) -> anyhow::Result<&mut Form>` | 指定されたフィールドに値を入力します。フィールドが存在しない場合や、入力値がフィールドの型に適合しない場合はエラーを返します。 |
+| check | `(field_name: &str, value: &str) -> anyhow::Result<&mut Form>` | チェックボックスをチェックします。複数の値を持つチェックボックスの場合は、複数回呼び出すことで複数選択できます。 |
+| uncheck | `(field_name: &str, value: &str) -> anyhow::Result<&mut Form>` | チェックボックスのチェックを外します。 |
+| choose | `(field_name: &str, value: &str) -> anyhow::Result<&mut Form>` | ラジオボタンを選択します。同じname属性の他のラジオボタンの選択は自動的に解除されます。 |
+| select | `(field_name: &str, value: &str) -> anyhow::Result<&mut Form>` | セレクトボックスのオプションを選択します。 |
+| submit | `(&self) -> anyhow::Result<HttpResponse>` | フォームを送信し、HTTP レスポンスを返します。 |
 
 #### fill メソッドのバリデーション
 
@@ -225,7 +225,7 @@ form.fill("username", "alice")?
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| click | (&self) -> anyhow::Result<HttpResponse> | ボタンをクリックし、関連するフォームを送信します。HTTP レスポンスを返します。 |
+| click | `(&self) -> anyhow::Result<HttpResponse>` | ボタンをクリックし、関連するフォームを送信します。HTTP レスポンスを返します。 |
 
 #### 使用例
 ```rust
@@ -239,7 +239,7 @@ assert!(response.status.is_success());
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| click | (&self) -> anyhow::Result<HttpResponse> | リンクをクリックし、href 先に GET リクエストを送信します。HTTP レスポンスを返します。 |
+| click | `(&self) -> anyhow::Result<HttpResponse>` | リンクをクリックし、href 先に GET リクエストを送信します。HTTP レスポンスを返します。 |
 
 #### 使用例
 ```rust
@@ -257,20 +257,20 @@ assert_eq!(response.status.0, 200);
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| headers | () -> Vec<String> | テーブルのヘッダー（th要素）を取得します。 |
-| rows | () -> Vec<Row> | テーブルの全行を取得します。 |
-| row | (index: usize) -> anyhow::Result<Row> | 指定されたインデックスの行を取得します。 |
-| cell | (row: usize, col: usize) -> anyhow::Result<String> | 指定された行・列のセルのテキストを取得します。 |
-| find_row | (column: &str, value: &str) -> anyhow::Result<Row> | 指定された列の値が一致する行を検索します。 |
+| headers | `() -> Vec<String>` | テーブルのヘッダー（th要素）を取得します。 |
+| rows | `() -> Vec<Row>` | テーブルの全行を取得します。 |
+| row | `(index: usize) -> anyhow::Result<Row>` | 指定されたインデックスの行を取得します。 |
+| cell | `(row: usize, col: usize) -> anyhow::Result<String>` | 指定された行・列のセルのテキストを取得します。 |
+| find_row | `(column: &str, value: &str) -> anyhow::Result<Row>` | 指定された列の値が一致する行を検索します。 |
 
 #### Row
 `Row` はテーブルの1行を表します。
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| cells | () -> Vec<String> | 行内の全セルのテキストを取得します。 |
-| cell | (index: usize) -> anyhow::Result<String> | 指定されたインデックスのセルのテキストを取得します。 |
-| get | (column: &str) -> anyhow::Result<String> | ヘッダー名を指定してセルのテキストを取得します。 |
+| cells | `() -> Vec<String>` | 行内の全セルのテキストを取得します。 |
+| cell | `(index: usize) -> anyhow::Result<String>` | 指定されたインデックスのセルのテキストを取得します。 |
+| get | `(column: &str) -> anyhow::Result<String>` | ヘッダー名を指定してセルのテキストを取得します。 |
 
 #### 使用例
 ```rust
@@ -301,10 +301,10 @@ assert_eq!(status, "Active");
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| items | () -> Vec<String> | リストの全アイテムのテキストを取得します。 |
-| item | (index: usize) -> anyhow::Result<String> | 指定されたインデックスのアイテムのテキストを取得します。 |
-| len | () -> usize | リストアイテムの数を返します。 |
-| contains | (text: &str) -> bool | 指定されたテキストを含むアイテムが存在するかチェックします。 |
+| items | `() -> Vec<String>` | リストの全アイテムのテキストを取得します。 |
+| item | `(index: usize) -> anyhow::Result<String>` | 指定されたインデックスのアイテムのテキストを取得します。 |
+| len | `() -> usize` | リストアイテムの数を返します。 |
+| contains | `(text: &str) -> bool` | 指定されたテキストを含むアイテムが存在するかチェックします。 |
 
 #### 使用例
 ```rust
@@ -327,9 +327,9 @@ assert!(list.contains("Buy groceries"));
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| text | (locator: &str) -> anyhow::Result<String> | 指定されたロケータの要素のテキストを取得します。 |
-| texts | (locator: &str) -> Vec<String> | 指定されたロケータに一致する全要素のテキストを取得します。 |
-| inner_html | (locator: &str) -> anyhow::Result<String> | 指定されたロケータの要素の内部HTMLを取得します。 |
+| text | `(locator: &str) -> anyhow::Result<String>` | 指定されたロケータの要素のテキストを取得します。 |
+| texts | `(locator: &str) -> Vec<String>` | 指定されたロケータに一致する全要素のテキストを取得します。 |
+| inner_html | `(locator: &str) -> anyhow::Result<String>` | 指定されたロケータの要素の内部HTMLを取得します。 |
 
 `text` で指定できるロケータの種類は以下の通りです。
 
@@ -361,23 +361,23 @@ assert!(content.contains("<p>"));
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| element | (locator: &str) -> anyhow::Result<Element> | 指定されたロケータの要素を取得します。 |
-| elements | (locator: &str) -> Vec<Element> | 指定されたロケータに一致する全要素を取得します。 |
+| element | `(locator: &str) -> anyhow::Result<Element>` | 指定されたロケータの要素を取得します。 |
+| elements | `(locator: &str) -> Vec<Element>` | 指定されたロケータに一致する全要素を取得します。 |
 
 #### Element
 `Element` は取得した要素を表します。
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| text | () -> String | 要素のテキストコンテンツを取得します。 |
-| attr | (name: &str) -> Option<String> | 指定された属性の値を取得します。 |
-| has_class | (class: &str) -> bool | 指定されたクラスを持っているかチェックします。 |
-| inner_html | () -> String | 要素の内部HTMLを取得します。 |
-| text_contains | (text: &str) -> bool | 要素のテキストが指定された文字列を含むかチェックします。 |
-| is_disabled | () -> bool | disabled 属性を持っているかチェックします。 |
-| is_required | () -> bool | required 属性を持っているかチェックします。 |
-| is_readonly | () -> bool | readonly 属性を持っているかチェックします。 |
-| is_checked | () -> bool | checked 属性を持っているかチェックします。 |
+| text | `() -> String` | 要素のテキストコンテンツを取得します。 |
+| attr | `(name: &str) -> Option<String>` | 指定された属性の値を取得します。 |
+| has_class | `(class: &str) -> bool` | 指定されたクラスを持っているかチェックします。 |
+| inner_html | `() -> String` | 要素の内部HTMLを取得します。 |
+| text_contains | `(text: &str) -> bool` | 要素のテキストが指定された文字列を含むかチェックします。 |
+| is_disabled | `() -> bool` | disabled 属性を持っているかチェックします。 |
+| is_required | `() -> bool` | required 属性を持っているかチェックします。 |
+| is_readonly | `() -> bool` | readonly 属性を持っているかチェックします。 |
+| is_checked | `() -> bool` | checked 属性を持っているかチェックします。 |
 
 #### 使用例
 ```rust
@@ -406,8 +406,8 @@ for elem in dom.elements(".product-item") {
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| title | () -> Result<String> | `<title>` タグの内容を取得します。 |
-| meta | (name: &str) -> Result<String> | `<meta name="...">` または `<meta property="...">` の content 属性を取得します。 |
+| title | `() -> Result<String>` | `<title>` タグの内容を取得します。 |
+| meta | `(name: &str) -> Result<String>` | `<meta name="...">` または `<meta property="...">` の content 属性を取得します。 |
 
 #### 使用例
 ```rust
@@ -431,8 +431,8 @@ assert_eq!(og_title, "Welcome");
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| exists | (locator: &str) -> bool | 指定されたロケータの要素が存在するかチェックします。 |
-| contains_text | (text: &str) -> bool | 指定されたテキストを含む要素が存在するかチェックします。 |
+| exists | `(locator: &str) -> bool` | 指定されたロケータの要素が存在するかチェックします。 |
+| contains_text | `(text: &str) -> bool` | 指定されたテキストを含む要素が存在するかチェックします。 |
 
 #### 使用例
 ```rust
@@ -450,20 +450,20 @@ assert!(!dom.contains_text("Error"));
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| select_element | (locator: &str) -> Result<SelectElement> | 指定されたロケータの select 要素を取得します。 |
+| select_element | `(locator: &str) -> Result<SelectElement>` | 指定されたロケータの select 要素を取得します。 |
 
 #### SelectElement
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| options | () -> Vec<SelectOption> | 全てのオプションを取得します。 |
-| selected_option | () -> Result<SelectOption> | 選択されているオプションを取得します。 |
+| options | `() -> Vec<SelectOption>` | 全てのオプションを取得します。 |
+| selected_option | `() -> Result<SelectOption>` | 選択されているオプションを取得します。 |
 
 #### SelectOption
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| value | () -> String | オプションの value 属性を取得します。 |
-| text | () -> String | オプションの表示テキストを取得します。 |
-| is_selected | () -> bool | オプションが選択されているかチェックします。 |
+| value | `() -> String` | オプションの value 属性を取得します。 |
+| text | `() -> String` | オプションの表示テキストを取得します。 |
+| is_selected | `() -> bool` | オプションが選択されているかチェックします。 |
 
 #### 使用例
 ```rust
@@ -486,10 +486,10 @@ assert!(selected.is_selected());
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| is_disabled | () -> bool | disabled 属性を持っているかチェックします。 |
-| is_required | () -> bool | required 属性を持っているかチェックします。 |
-| is_readonly | () -> bool | readonly 属性を持っているかチェックします。 |
-| is_checked | () -> bool | checked 属性を持っているかチェックします（checkbox/radio）。 |
+| is_disabled | `() -> bool` | disabled 属性を持っているかチェックします。 |
+| is_required | `() -> bool` | required 属性を持っているかチェックします。 |
+| is_readonly | `() -> bool` | readonly 属性を持っているかチェックします。 |
+| is_checked | `() -> bool` | checked 属性を持っているかチェックします（checkbox/radio）。 |
 
 #### 使用例
 ```rust
@@ -509,16 +509,16 @@ assert!(checkbox.is_checked());
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| image | (locator: &str) -> Result<Image> | 指定されたロケータの画像を取得します。 |
-| images | (locator: &str) -> Vec<Image> | 指定されたロケータに一致する全画像を取得します。 |
+| image | `(locator: &str) -> Result<Image>` | 指定されたロケータの画像を取得します。 |
+| images | `(locator: &str) -> Vec<Image>` | 指定されたロケータに一致する全画像を取得します。 |
 
 #### Image
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| src | () -> String | 画像の src 属性を取得します。 |
-| alt | () -> Option<String> | 画像の alt 属性を取得します。 |
-| width | () -> Option<String> | 画像の width 属性を取得します。 |
-| height | () -> Option<String> | 画像の height 属性を取得します。 |
+| src | `() -> String` | 画像の src 属性を取得します。 |
+| alt | `() -> Option<String>` | 画像の alt 属性を取得します。 |
+| width | `() -> Option<String>` | 画像の width 属性を取得します。 |
+| height | `() -> Option<String>` | 画像の height 属性を取得します。 |
 
 #### 使用例
 ```rust
@@ -538,7 +538,7 @@ for img in images {
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| text_contains | (text: &str) -> bool | 要素のテキストが指定された文字列を含むかチェックします。 |
+| text_contains | `(text: &str) -> bool` | 要素のテキストが指定された文字列を含むかチェックします。 |
 
 #### 使用例
 ```rust
@@ -552,7 +552,7 @@ assert!(!message.text_contains("Error"));
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| get_value | (field_name: &str) -> Result<String> | 指定されたフィールドの現在値を取得します。 |
+| get_value | `(field_name: &str) -> Result<String>` | 指定されたフィールドの現在値を取得します。 |
 
 #### 使用例
 ```rust
