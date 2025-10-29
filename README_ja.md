@@ -668,6 +668,82 @@ impl HttpTransport for ReqwestTransport {
 }
 ```
 
+## フレームワーク統合
+
+`lightdom-test` は主要な Rust Web フレームワークとの統合をオプション機能として提供しています。
+
+### Axum 統合
+
+Axum フレームワークを使用している場合、`AxumTransport` を使って HTTPサーバーを起動せずに直接 Router をテストできます。
+
+#### 有効化
+
+`Cargo.toml` に `axum` feature を追加します：
+
+```toml
+[dev-dependencies]
+lightdom-test = { version = "0.1", features = ["axum"] }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+```
+
+#### 使用例
+
+```rust
+use axum::{Router, routing::post, Form};
+use lightdom_test::{Dom, transports::AxumTransport};
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct LoginForm {
+    username: String,
+    password: String,
+}
+
+async fn login_handler(Form(form): Form<LoginForm>) -> String {
+    if form.username == "alice" && form.password == "secret" {
+        "Welcome, alice".to_string()
+    } else {
+        "Invalid credentials".to_string()
+    }
+}
+
+#[tokio::test]
+async fn test_login() {
+    // Axum Router を作成
+    let app = Router::new()
+        .route("/login", post(login_handler));
+
+    // AxumTransport を使用
+    let transport = AxumTransport::new(app);
+
+    let html = r#"
+        <form action="/login" method="post">
+            <input name="username" type="text">
+            <input name="password" type="password">
+        </form>
+    "#;
+
+    let mut form = Dom::new(transport)
+        .parse(html.to_string())
+        .unwrap()
+        .form("/login")
+        .unwrap();
+
+    form.fill("username", "alice").unwrap()
+        .fill("password", "secret").unwrap();
+
+    let response = form.submit().await.unwrap();
+    assert!(response.body.contains("Welcome, alice"));
+}
+```
+
+#### 利点
+
+- **高速**: HTTP サーバーを起動する必要がないため、テストが高速に実行されます
+- **ポート管理不要**: ランダムポートの割り当てやポート衝突の心配がありません
+- **シンプル**: `Router` を直接渡すだけで使用できます
+
 
 ## 目指す哲学
 

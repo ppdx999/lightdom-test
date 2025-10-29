@@ -4,6 +4,8 @@ use scraper::{Html, Selector};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+pub mod transports;
+
 /// HTTP メソッドを表す列挙型
 #[derive(Debug, Clone, PartialEq)]
 pub enum Method {
@@ -523,6 +525,14 @@ impl<T: HttpTransport> Form<T> {
 
         let body = params.join("&");
 
+        let mut headers = HashMap::new();
+        if self.method.to_lowercase() == "post" {
+            headers.insert(
+                "Content-Type".to_string(),
+                "application/x-www-form-urlencoded".to_string(),
+            );
+        }
+
         let req = HttpRequest {
             method: if self.method.to_lowercase() == "get" {
                 Method::Get
@@ -530,7 +540,7 @@ impl<T: HttpTransport> Form<T> {
                 Method::Post
             },
             url: self.action.clone(),
-            headers: HashMap::new(),
+            headers,
             body: Some(body),
         };
 
@@ -543,6 +553,7 @@ impl<T: HttpTransport> Form<T> {
 pub struct Button<T: HttpTransport> {
     form_action: Option<String>,
     form_method: Option<String>,
+    html: String,
     transport: Arc<T>,
 }
 
@@ -608,6 +619,7 @@ impl<T: HttpTransport> Button<T> {
         Ok(Self {
             form_action,
             form_method,
+            html: html.to_string(),
             transport,
         })
     }
@@ -619,15 +631,59 @@ impl<T: HttpTransport> Button<T> {
             .as_ref()
             .ok_or_else(|| anyhow!("Button is not associated with a form"))?;
 
+        // フォームのデフォルト値を収集（hidden、text、emailなど）
+        let document = Html::parse_document(&self.html);
+        let form_selector = Selector::parse(&format!("form[action=\"{}\"]", action))
+            .or_else(|_| Selector::parse("form"))
+            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+
+        let mut params = Vec::new();
+
+        if let Some(form_element) = document.select(&form_selector).next() {
+            let input_selector =
+                Selector::parse("input").map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+
+            for input in form_element.select(&input_selector) {
+                let input_type = input.value().attr("type").unwrap_or("text");
+                let name = input.value().attr("name");
+                let value = input.value().attr("value");
+
+                if let (Some(n), Some(v)) = (name, value) {
+                    // hidden, text, email などのフィールドのデフォルト値を収集
+                    if !matches!(
+                        input_type,
+                        "checkbox" | "radio" | "submit" | "button" | "reset"
+                    ) {
+                        params.push(format!("{}={}", n, v));
+                    }
+                }
+            }
+        }
+
+        let body = params.join("&");
+        let method_str = self.form_method.as_deref().unwrap_or("get").to_lowercase();
+
+        let mut headers = HashMap::new();
+        if method_str == "post" {
+            headers.insert(
+                "Content-Type".to_string(),
+                "application/x-www-form-urlencoded".to_string(),
+            );
+        }
+
         let req = HttpRequest {
-            method: if self.form_method.as_deref().unwrap_or("get").to_lowercase() == "post" {
+            method: if method_str == "post" {
                 Method::Post
             } else {
                 Method::Get
             },
             url: action.clone(),
-            headers: HashMap::new(),
-            body: None,
+            headers,
+            body: if method_str == "post" {
+                Some(body)
+            } else {
+                None
+            },
         };
 
         self.transport.send(req).await
