@@ -107,7 +107,7 @@ async fn test_login_flow() -> Result<()> {
 | table | `(locator: &str) -> anyhow::Result<Table>` | 指定されたロケータのテーブルを取得します。 |
 | list | `(locator: &str) -> anyhow::Result<List>` | 指定されたロケータのリストを取得します。 |
 | title | `() -> anyhow::Result<String>` | `<title>` タグの内容を取得します。 |
-| meta | `(name: &str) -> anyhow::Result<String>` | メタタグの content 属性を取得します。 |
+| meta | `(name: &str) -> anyhow::Result<String>` | `<meta name="...">` または `<meta property="...">` の content 属性を取得します。 |
 | exists | `(locator: &str) -> bool` | 指定されたロケータの要素が存在するかチェックします。 |
 | contains_text | `(text: &str) -> bool` | 指定されたテキストを含む要素が存在するかチェックします。 |
 | select_element | `(locator: &str) -> anyhow::Result<SelectElement>` | 指定されたロケータの select 要素を取得します。 |
@@ -406,8 +406,8 @@ for elem in dom.elements(".product-item") {
 
 | メソッド | 型 | 説明 |
 |----------|------|------------------------------------|
-| title | `() -> Result<String>` | `<title>` タグの内容を取得します。 |
-| meta | `(name: &str) -> Result<String>` | `<meta name="...">` または `<meta property="...">` の content 属性を取得します。 |
+| title | `() -> anyhow::Result<String>` | `<title>` タグの内容を取得します。 |
+| meta | `(name: &str) -> anyhow::Result<String>` | `<meta name="...">` または `<meta property="...">` の content 属性を取得します。 |
 
 #### 使用例
 ```rust
@@ -481,29 +481,6 @@ assert_eq!(selected.value(), "us");
 assert!(selected.is_selected());
 ```
 
-### Element State
-`Element` に要素の状態をチェックするメソッドが追加されます。
-
-| メソッド | 型 | 説明 |
-|----------|------|------------------------------------|
-| is_disabled | `() -> bool` | disabled 属性を持っているかチェックします。 |
-| is_required | `() -> bool` | required 属性を持っているかチェックします。 |
-| is_readonly | `() -> bool` | readonly 属性を持っているかチェックします。 |
-| is_checked | `() -> bool` | checked 属性を持っているかチェックします（checkbox/radio）。 |
-
-#### 使用例
-```rust
-let button = dom.element("#submit-btn")?;
-assert!(button.is_disabled());
-
-let email = dom.element("#email")?;
-assert!(email.is_required());
-assert!(!email.is_readonly());
-
-let checkbox = dom.element("#agree")?;
-assert!(checkbox.is_checked());
-```
-
 ### Image
 `Dom` は画像要素を取得するための API を提供します。
 
@@ -531,41 +508,6 @@ let images = dom.images("img");
 for img in images {
     println!("{}: {}", img.src(), img.alt().unwrap_or_default());
 }
-```
-
-### Text Search
-`Element` にテキストの部分一致検索メソッドが追加されます。
-
-| メソッド | 型 | 説明 |
-|----------|------|------------------------------------|
-| text_contains | `(text: &str) -> bool` | 要素のテキストが指定された文字列を含むかチェックします。 |
-
-#### 使用例
-```rust
-let message = dom.element("#message")?;
-assert!(message.text_contains("Success"));
-assert!(!message.text_contains("Error"));
-```
-
-### Form Value
-`Form` にフィールドの初期値を取得するメソッドが追加されます。
-
-| メソッド | 型 | 説明 |
-|----------|------|------------------------------------|
-| get_value | `(field_name: &str) -> Result<String>` | 指定されたフィールドの現在値を取得します。 |
-
-#### 使用例
-```rust
-let form = dom.form("#edit-form")?;
-
-// 初期値の確認
-let username = form.get_value("username")?;
-assert_eq!(username, "alice");
-
-// 値を変更
-form.fill("username", "bob")?;
-let new_value = form.get_value("username")?;
-assert_eq!(new_value, "bob");
 ```
 
 ## Transport層
