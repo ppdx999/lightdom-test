@@ -1,7 +1,16 @@
 [package]
 name = "lightdom-test"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+authors = ["fujis"]
+description = "A lightweight Rust library for testing HTML interactions without browser automation"
+license = "MIT"
+repository = "https://github.com/ppdx999/lightdom-test"
+homepage = "https://github.com/ppdx999/lightdom-test"
+documentation = "https://docs.rs/lightdom-test"
+readme = "README.md"
+keywords = ["testing", "html", "form", "web", "automation"]
+categories = ["development-tools::testing", "web-programming"]
 
 [features]
 default = []
