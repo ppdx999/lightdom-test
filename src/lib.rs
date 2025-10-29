@@ -1013,11 +1013,14 @@ impl Image {
         } else if locator == "img" {
             "img".to_string()
         } else {
-            return Err(anyhow!("Invalid locator: {}. Must start with @, #, . or be 'img'", locator));
+            return Err(anyhow!(
+                "Invalid locator: {}. Must start with @, #, . or be 'img'",
+                locator
+            ));
         };
 
-        let selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let selector =
+            Selector::parse(&selector_str).map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let img_element = document
             .select(&selector)
@@ -1130,8 +1133,8 @@ impl SelectElement {
             ));
         };
 
-        let selector = Selector::parse(&selector_str)
-            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+        let selector =
+            Selector::parse(&selector_str).map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let select_element = document
             .select(&selector)

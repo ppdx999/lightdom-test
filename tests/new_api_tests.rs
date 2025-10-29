@@ -481,5 +481,10 @@ async fn test_select_element_no_selection() {
     let result = select.selected_option();
 
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("No option is selected"));
+    assert!(
+        result
+            .unwrap_err()
+            .to_string()
+            .contains("No option is selected")
+    );
 }
