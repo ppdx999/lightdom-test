@@ -2,12 +2,12 @@
 
 use anyhow::Result;
 use axum::{
-    Router,
     extract::Form,
     response::{Html, IntoResponse},
     routing::{get, post},
+    Router,
 };
-use lightdom_test::{Dom, transports::AxumTransport};
+use lightdom_test::{transports::AxumTransport, Dom};
 use serde::Deserialize;
 
 // ============================================
@@ -227,12 +227,10 @@ async fn test_axum_form_validation() -> Result<()> {
     // email のバリデーション
     let result = form.fill("email", "invalid-email");
     assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid email format")
-    );
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Invalid email format"));
 
     // 正しい email でフォームを送信
     form.fill("email", "test@example.com")?

@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use scraper::{Html, Selector};
 use std::collections::{HashMap, HashSet};
@@ -599,20 +599,20 @@ impl<T: HttpTransport> Button<T> {
 
         // 親要素を辿ってformを探す
         for ancestor in button_element.ancestors() {
-            if let Some(element) = ancestor.value().as_element()
-                && element.name() == "form"
-            {
-                form_action = ancestor
-                    .value()
-                    .as_element()
-                    .and_then(|e| e.attr("action"))
-                    .map(|s| s.to_string());
-                form_method = ancestor
-                    .value()
-                    .as_element()
-                    .and_then(|e| e.attr("method"))
-                    .map(|s| s.to_string());
-                break;
+            if let Some(element) = ancestor.value().as_element() {
+                if element.name() == "form" {
+                    form_action = ancestor
+                        .value()
+                        .as_element()
+                        .and_then(|e| e.attr("action"))
+                        .map(|s| s.to_string());
+                    form_method = ancestor
+                        .value()
+                        .as_element()
+                        .and_then(|e| e.attr("method"))
+                        .map(|s| s.to_string());
+                    break;
+                }
             }
         }
 

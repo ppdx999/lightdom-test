@@ -1,7 +1,7 @@
 #![cfg(feature = "rocket")]
 
 use anyhow::Result;
-use lightdom_test::{Dom, transports::RocketTransport};
+use lightdom_test::{transports::RocketTransport, Dom};
 use rocket::{form::Form, routes};
 
 // ============================================
@@ -199,12 +199,10 @@ async fn test_rocket_form_validation() -> Result<()> {
     // email のバリデーション
     let result = form.fill("email", "invalid-email");
     assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid email format")
-    );
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Invalid email format"));
 
     // 正しい email でフォームを送信
     form.fill("email", "test@example.com")?

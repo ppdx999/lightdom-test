@@ -289,12 +289,10 @@ async fn test_form_fill_invalid_email() {
 
     let result = form.fill("email", "invalid-email");
     assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid email format")
-    );
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Invalid email format"));
 }
 
 #[tokio::test]
@@ -332,12 +330,10 @@ async fn test_form_fill_invalid_number() {
 
     let result = form.fill("age", "not-a-number");
     assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid number format")
-    );
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Invalid number format"));
 }
 
 #[tokio::test]
@@ -375,12 +371,10 @@ async fn test_form_fill_invalid_url() {
 
     let result = form.fill("website", "not-a-url");
     assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid URL format")
-    );
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Invalid URL format"));
 }
 
 #[tokio::test]
@@ -418,12 +412,10 @@ async fn test_form_fill_invalid_tel() {
 
     let result = form.fill("phone", "abc-def-ghij");
     assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid phone number format")
-    );
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Invalid phone number format"));
 }
 
 #[tokio::test]
@@ -461,12 +453,10 @@ async fn test_form_fill_invalid_date() {
 
     let result = form.fill("birthday", "2023/01/01");
     assert!(result.is_err());
-    assert!(
-        result
-            .unwrap_err()
-            .to_string()
-            .contains("Invalid date format")
-    );
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Invalid date format"));
 }
 
 #[tokio::test]
