@@ -7,3 +7,9 @@ pub mod axum;
 
 #[cfg(feature = "axum")]
 pub use self::axum::AxumTransport;
+
+#[cfg(feature = "rocket")]
+pub mod rocket;
+
+#[cfg(feature = "rocket")]
+pub use self::rocket::RocketTransport;

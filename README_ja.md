@@ -744,6 +744,78 @@ async fn test_login() {
 - **ポート管理不要**: ランダムポートの割り当てやポート衝突の心配がありません
 - **シンプル**: `Router` を直接渡すだけで使用できます
 
+### Rocket 統合
+
+Rocket フレームワークを使用している場合、`RocketTransport` を使って HTTPサーバーを起動せずに直接 Rocket インスタンスをテストできます。
+
+#### 有効化
+
+`Cargo.toml` に `rocket` feature を追加します：
+
+```toml
+[dev-dependencies]
+lightdom-test = { version = "0.1", features = ["rocket"] }
+rocket = "0.5"
+tokio = { version = "1", features = ["full"] }
+```
+
+#### 使用例
+
+```rust
+use rocket::{routes, post, form::Form};
+use lightdom_test::{Dom, transports::RocketTransport};
+
+#[derive(rocket::form::FromForm)]
+struct LoginForm {
+    username: String,
+    password: String,
+}
+
+#[post("/login", data = "<form>")]
+async fn login_handler(form: Form<LoginForm>) -> String {
+    if form.username == "alice" && form.password == "secret" {
+        "Welcome, alice".to_string()
+    } else {
+        "Invalid credentials".to_string()
+    }
+}
+
+#[tokio::test]
+async fn test_login() {
+    // Rocket インスタンスを作成
+    let rocket = rocket::build()
+        .mount("/", routes![login_handler]);
+
+    // RocketTransport を使用
+    let transport = RocketTransport::new(rocket).await.unwrap();
+
+    let html = r#"
+        <form action="/login" method="post">
+            <input name="username" type="text">
+            <input name="password" type="password">
+        </form>
+    "#;
+
+    let mut form = Dom::new(transport)
+        .parse(html.to_string())
+        .unwrap()
+        .form("/login")
+        .unwrap();
+
+    form.fill("username", "alice").unwrap()
+        .fill("password", "secret").unwrap();
+
+    let response = form.submit().await.unwrap();
+    assert!(response.body.contains("Welcome, alice"));
+}
+```
+
+#### 利点
+
+- **高速**: HTTP サーバーを起動する必要がないため、テストが高速に実行されます
+- **ポート管理不要**: ランダムポートの割り当てやポート衝突の心配がありません
+- **Rocket の機能をフル活用**: ミドルウェア、Fairings、State などの Rocket の全機能をテストできます
+
 
 ## 目指す哲学
 
