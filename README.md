@@ -1,6 +1,6 @@
 # lightdom-test
 
-A lightweight library for testing HTML form and button interactions generated in Rust.
+A lightweight Rust library for testing HTML interactions without browser automation.
 
 ---
 
