@@ -116,6 +116,71 @@ impl<T: HttpTransport> Dom<T> {
     pub fn list(&self, locator: &str) -> Result<List> {
         List::find(&self.html, locator)
     }
+
+    /// 要素が存在するかチェック
+    pub fn exists(&self, locator: &str) -> bool {
+        self.element(locator).is_ok()
+    }
+
+    /// 指定されたテキストを含む要素が存在するかチェック
+    pub fn contains_text(&self, text: &str) -> bool {
+        let document = Html::parse_document(&self.html);
+        let body_text: String = document.root_element().text().collect();
+        body_text.contains(text)
+    }
+
+    /// title タグの内容を取得
+    pub fn title(&self) -> Result<String> {
+        let document = Html::parse_document(&self.html);
+        let title_selector = Selector::parse("title").unwrap();
+        let title_element = document
+            .select(&title_selector)
+            .next()
+            .ok_or_else(|| anyhow!("Title tag not found"))?;
+        Ok(title_element.text().collect::<String>().trim().to_string())
+    }
+
+    /// メタタグの content 属性を取得
+    pub fn meta(&self, name: &str) -> Result<String> {
+        let document = Html::parse_document(&self.html);
+
+        // name 属性で検索
+        let name_selector = Selector::parse(&format!("meta[name=\"{}\"]", name)).unwrap();
+        if let Some(meta_element) = document.select(&name_selector).next() {
+            return meta_element
+                .value()
+                .attr("content")
+                .ok_or_else(|| anyhow!("Meta tag '{}' has no content attribute", name))
+                .map(|s| s.to_string());
+        }
+
+        // property 属性で検索（OGP タグ用）
+        let property_selector = Selector::parse(&format!("meta[property=\"{}\"]", name)).unwrap();
+        if let Some(meta_element) = document.select(&property_selector).next() {
+            return meta_element
+                .value()
+                .attr("content")
+                .ok_or_else(|| anyhow!("Meta tag '{}' has no content attribute", name))
+                .map(|s| s.to_string());
+        }
+
+        Err(anyhow!("Meta tag '{}' not found", name))
+    }
+
+    /// 画像を取得
+    pub fn image(&self, locator: &str) -> Result<Image> {
+        Image::find(&self.html, locator)
+    }
+
+    /// 複数の画像を取得
+    pub fn images(&self, locator: &str) -> Vec<Image> {
+        Image::find_all(&self.html, locator)
+    }
+
+    /// select 要素を取得
+    pub fn select_element(&self, locator: &str) -> Result<SelectElement> {
+        SelectElement::find(&self.html, locator)
+    }
 }
 
 /// HTML フォームを表す構造体
@@ -264,6 +329,14 @@ impl<T: HttpTransport> Form<T> {
     /// フィールドがフォーム内に存在するかチェック
     pub fn is_exist(&self, field_name: &str) -> bool {
         self.field_types.contains_key(field_name)
+    }
+
+    /// フィールドの現在値を取得
+    pub fn get_value(&self, field_name: &str) -> Result<String> {
+        self.fields
+            .get(field_name)
+            .cloned()
+            .ok_or_else(|| anyhow!("Field '{}' not found or has no value", field_name))
     }
 
     /// フィールドに値を入力
@@ -719,6 +792,31 @@ impl Element {
     pub fn inner_html(&self) -> String {
         self.inner_html.clone()
     }
+
+    /// テキストが指定された文字列を含むかチェック
+    pub fn text_contains(&self, text: &str) -> bool {
+        self.text_content.contains(text)
+    }
+
+    /// disabled 属性を持っているかチェック
+    pub fn is_disabled(&self) -> bool {
+        self.attributes.contains_key("disabled")
+    }
+
+    /// required 属性を持っているかチェック
+    pub fn is_required(&self) -> bool {
+        self.attributes.contains_key("required")
+    }
+
+    /// readonly 属性を持っているかチェック
+    pub fn is_readonly(&self) -> bool {
+        self.attributes.contains_key("readonly")
+    }
+
+    /// checked 属性を持っているかチェック
+    pub fn is_checked(&self) -> bool {
+        self.attributes.contains_key("checked")
+    }
 }
 
 /// テーブルの行を表す構造体
@@ -893,5 +991,189 @@ impl List {
     /// 指定されたテキストを含むアイテムが存在するかチェック
     pub fn contains(&self, text: &str) -> bool {
         self.items.iter().any(|item| item == text)
+    }
+}
+
+/// HTML画像を表す構造体
+#[derive(Debug, Clone)]
+pub struct Image {
+    src: String,
+    alt: Option<String>,
+    width: Option<String>,
+    height: Option<String>,
+}
+
+impl Image {
+    fn find(html: &str, locator: &str) -> Result<Self> {
+        let document = Html::parse_document(html);
+        let selector_str = if let Some(test_id) = locator.strip_prefix('@') {
+            format!("img[test-id=\"{}\"]", test_id)
+        } else if locator.starts_with('#') || locator.starts_with('.') {
+            format!("img{}", locator)
+        } else if locator == "img" {
+            "img".to_string()
+        } else {
+            return Err(anyhow!("Invalid locator: {}. Must start with @, #, . or be 'img'", locator));
+        };
+
+        let selector = Selector::parse(&selector_str)
+            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+
+        let img_element = document
+            .select(&selector)
+            .next()
+            .ok_or_else(|| anyhow!("Image not found: {}", locator))?;
+
+        Ok(Self::from_element_ref(img_element))
+    }
+
+    fn find_all(html: &str, locator: &str) -> Vec<Self> {
+        let document = Html::parse_document(html);
+        let selector_str = if let Some(test_id) = locator.strip_prefix('@') {
+            format!("img[test-id=\"{}\"]", test_id)
+        } else if locator.starts_with('#') || locator.starts_with('.') {
+            format!("img{}", locator)
+        } else if locator == "img" {
+            "img".to_string()
+        } else {
+            return Vec::new();
+        };
+
+        let selector = match Selector::parse(&selector_str) {
+            Ok(s) => s,
+            Err(_) => return Vec::new(),
+        };
+
+        document
+            .select(&selector)
+            .map(Self::from_element_ref)
+            .collect()
+    }
+
+    fn from_element_ref(element: scraper::element_ref::ElementRef) -> Self {
+        let src = element.value().attr("src").unwrap_or("").to_string();
+        let alt = element.value().attr("alt").map(|s| s.to_string());
+        let width = element.value().attr("width").map(|s| s.to_string());
+        let height = element.value().attr("height").map(|s| s.to_string());
+
+        Self {
+            src,
+            alt,
+            width,
+            height,
+        }
+    }
+
+    /// 画像の src 属性を取得
+    pub fn src(&self) -> String {
+        self.src.clone()
+    }
+
+    /// 画像の alt 属性を取得
+    pub fn alt(&self) -> Option<String> {
+        self.alt.clone()
+    }
+
+    /// 画像の width 属性を取得
+    pub fn width(&self) -> Option<String> {
+        self.width.clone()
+    }
+
+    /// 画像の height 属性を取得
+    pub fn height(&self) -> Option<String> {
+        self.height.clone()
+    }
+}
+
+/// Selectのオプションを表す構造体
+#[derive(Debug, Clone)]
+pub struct SelectOption {
+    value: String,
+    text: String,
+    selected: bool,
+}
+
+impl SelectOption {
+    /// オプションの value 属性を取得
+    pub fn value(&self) -> String {
+        self.value.clone()
+    }
+
+    /// オプションの表示テキストを取得
+    pub fn text(&self) -> String {
+        self.text.clone()
+    }
+
+    /// オプションが選択されているかチェック
+    pub fn is_selected(&self) -> bool {
+        self.selected
+    }
+}
+
+/// HTML select 要素を表す構造体
+#[derive(Debug, Clone)]
+pub struct SelectElement {
+    options: Vec<SelectOption>,
+}
+
+impl SelectElement {
+    fn find(html: &str, locator: &str) -> Result<Self> {
+        let document = Html::parse_document(html);
+        let selector_str = if let Some(test_id) = locator.strip_prefix('@') {
+            format!("select[test-id=\"{}\"]", test_id)
+        } else if locator.starts_with('#') || locator.starts_with('.') {
+            format!("select{}", locator)
+        } else {
+            return Err(anyhow!(
+                "Invalid locator: {}. Must start with @, #, or .",
+                locator
+            ));
+        };
+
+        let selector = Selector::parse(&selector_str)
+            .map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
+
+        let select_element = document
+            .select(&selector)
+            .next()
+            .ok_or_else(|| anyhow!("Select element not found: {}", locator))?;
+
+        // option 要素を取得
+        let option_selector = Selector::parse("option").unwrap();
+        let options: Vec<SelectOption> = select_element
+            .select(&option_selector)
+            .map(|option| {
+                let text_content = option.text().collect::<String>();
+                let value = option
+                    .value()
+                    .attr("value")
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| text_content.trim().to_string());
+                let text = text_content.trim().to_string();
+                let selected = option.value().attr("selected").is_some();
+
+                SelectOption {
+                    value,
+                    text,
+                    selected,
+                }
+            })
+            .collect();
+
+        Ok(Self { options })
+    }
+
+    /// 全てのオプションを取得
+    pub fn options(&self) -> Vec<SelectOption> {
+        self.options.clone()
+    }
+
+    /// 選択されているオプションを取得
+    pub fn selected_option(&self) -> Result<SelectOption> {
+        self.options
+            .iter()
+            .find(|opt| opt.selected)
+            .cloned()
+            .ok_or_else(|| anyhow!("No option is selected"))
     }
 }
