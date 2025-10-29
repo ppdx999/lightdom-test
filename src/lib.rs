@@ -6,14 +6,14 @@ use std::sync::Arc;
 
 pub mod transports;
 
-/// HTTP メソッドを表す列挙型
+/// HTTP method enumeration
 #[derive(Debug, Clone, PartialEq)]
 pub enum Method {
     Get,
     Post,
 }
 
-/// HTTP リクエストを表す構造体
+/// HTTP request structure
 #[derive(Debug, Clone)]
 pub struct HttpRequest {
     pub method: Method,
@@ -22,7 +22,7 @@ pub struct HttpRequest {
     pub body: Option<String>,
 }
 
-/// HTTP ステータスコード
+/// HTTP status code
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StatusCode(pub u16);
 
@@ -32,7 +32,7 @@ impl StatusCode {
     }
 }
 
-/// HTTP レスポンスを表す構造体
+/// HTTP response structure
 #[derive(Debug, Clone)]
 pub struct HttpResponse {
     pub status: StatusCode,
@@ -40,20 +40,20 @@ pub struct HttpResponse {
     pub body: String,
 }
 
-/// HTTP トランスポート層のトレイト
+/// HTTP transport layer trait
 #[async_trait]
 pub trait HttpTransport: Send + Sync {
     async fn send(&self, req: HttpRequest) -> Result<HttpResponse>;
 }
 
-/// HTML ドキュメントを操作するための構造体
+/// Structure for manipulating HTML documents
 pub struct Dom<T: HttpTransport> {
     transport: Arc<T>,
     html: String,
 }
 
 impl<T: HttpTransport> Dom<T> {
-    /// 新しい Dom インスタンスを作成
+    /// Create a new Dom instance
     pub fn new(transport: T) -> Self {
         Self {
             transport: Arc::new(transport),
@@ -61,77 +61,77 @@ impl<T: HttpTransport> Dom<T> {
         }
     }
 
-    /// HTML をパースして Dom インスタンスを返す
+    /// Parse HTML and return a Dom instance
     pub fn parse(mut self, html: String) -> Result<Self> {
         self.html = html;
         Ok(self)
     }
 
-    /// フォームを取得
+    /// Get a form
     pub fn form(&self, locator: &str) -> Result<Form<T>> {
         Form::find(&self.html, locator, Arc::clone(&self.transport))
     }
 
-    /// ボタンを取得
+    /// Get a button
     pub fn button(&self, locator: &str) -> Result<Button<T>> {
         Button::find(&self.html, locator, Arc::clone(&self.transport))
     }
 
-    /// リンクを取得
+    /// Get a link
     pub fn link(&self, locator: &str) -> Result<Link<T>> {
         Link::find(&self.html, locator, Arc::clone(&self.transport))
     }
 
-    /// 要素を取得
+    /// Get an element
     pub fn element(&self, locator: &str) -> Result<Element> {
         Element::find(&self.html, locator)
     }
 
-    /// 複数の要素を取得
+    /// Get multiple elements
     pub fn elements(&self, locator: &str) -> Vec<Element> {
         Element::find_all(&self.html, locator)
     }
 
-    /// 要素のテキストを取得
+    /// Get the text of an element
     pub fn text(&self, locator: &str) -> Result<String> {
         let element = self.element(locator)?;
         Ok(element.text())
     }
 
-    /// 複数要素のテキストを取得
+    /// Get the text of multiple elements
     pub fn texts(&self, locator: &str) -> Vec<String> {
         self.elements(locator).iter().map(|e| e.text()).collect()
     }
 
-    /// 要素の内部HTMLを取得
+    /// Get the inner HTML of an element
     pub fn inner_html(&self, locator: &str) -> Result<String> {
         let element = self.element(locator)?;
         Ok(element.inner_html())
     }
 
-    /// テーブルを取得
+    /// Get a table
     pub fn table(&self, locator: &str) -> Result<Table> {
         Table::find(&self.html, locator)
     }
 
-    /// リストを取得
+    /// Get a list
     pub fn list(&self, locator: &str) -> Result<List> {
         List::find(&self.html, locator)
     }
 
-    /// 要素が存在するかチェック
+    /// Check if an element exists
     pub fn exists(&self, locator: &str) -> bool {
         self.element(locator).is_ok()
     }
 
-    /// 指定されたテキストを含む要素が存在するかチェック
+    /// Check if an element containing the specified text exists
     pub fn contains_text(&self, text: &str) -> bool {
         let document = Html::parse_document(&self.html);
         let body_text: String = document.root_element().text().collect();
         body_text.contains(text)
     }
 
-    /// title タグの内容を取得
+    /// Get the content of the title tag
     pub fn title(&self) -> Result<String> {
         let document = Html::parse_document(&self.html);
         let title_selector = Selector::parse("title").unwrap();
@@ -142,11 +142,11 @@ impl<T: HttpTransport> Dom<T> {
         Ok(title_element.text().collect::<String>().trim().to_string())
     }
 
-    /// メタタグの content 属性を取得
+    /// Get the content attribute of a meta tag
     pub fn meta(&self, name: &str) -> Result<String> {
         let document = Html::parse_document(&self.html);
 
-        // name 属性で検索
+        // Search by name attribute
         let name_selector = Selector::parse(&format!("meta[name=\"{}\"]", name)).unwrap();
         if let Some(meta_element) = document.select(&name_selector).next() {
             return meta_element
@@ -156,7 +156,7 @@ impl<T: HttpTransport> Dom<T> {
                 .map(|s| s.to_string());
         }
 
-        // property 属性で検索（OGP タグ用）
+        // Search by property attribute (for OGP tags)
         let property_selector = Selector::parse(&format!("meta[property=\"{}\"]", name)).unwrap();
         if let Some(meta_element) = document.select(&property_selector).next() {
             return meta_element
@@ -169,33 +169,33 @@ impl<T: HttpTransport> Dom<T> {
         Err(anyhow!("Meta tag '{}' not found", name))
     }
 
-    /// 画像を取得
+    /// Get an image
     pub fn image(&self, locator: &str) -> Result<Image> {
         Image::find(&self.html, locator)
     }
 
-    /// 複数の画像を取得
+    /// Get multiple images
     pub fn images(&self, locator: &str) -> Vec<Image> {
         Image::find_all(&self.html, locator)
     }
 
-    /// select 要素を取得
+    /// Get a select element
     pub fn select_element(&self, locator: &str) -> Result<SelectElement> {
         SelectElement::find(&self.html, locator)
     }
 }
 
-/// HTML フォームを表す構造体
+/// HTML form structure
 #[derive(Debug)]
 pub struct Form<T: HttpTransport> {
     action: String,
     method: String,
     fields: HashMap<String, String>,
     field_types: HashMap<String, String>,
-    // checkbox/radio の情報
+    // Checkbox/radio information
     checkboxes: HashMap<String, Vec<String>>, // name -> [values]
     radios: HashMap<String, Vec<String>>,     // name -> [values]
-    checked_checkboxes: HashSet<String>,      // "name=value" のセット
+    checked_checkboxes: HashSet<String>,      // Set of "name=value"
     selected_radios: HashMap<String, String>, // name -> selected value
     transport: Arc<T>,
 }
@@ -204,15 +204,15 @@ impl<T: HttpTransport> Form<T> {
     fn find(html: &str, locator: &str, transport: Arc<T>) -> Result<Self> {
         let document = Html::parse_document(html);
 
-        // ロケータに基づいてセレクタを生成
+        // Generate selector based on locator
         let selector_str = if let Some(test_id) = locator.strip_prefix('@') {
-            // test-id 属性
+            // test-id attribute
             format!("form[test-id=\"{}\"]", test_id)
         } else if locator.starts_with('#') {
-            // id 属性
+            // id attribute
             format!("form{}", locator)
         } else if locator.starts_with('/') {
-            // action 属性
+            // action attribute
             format!("form[action=\"{}\"]", locator)
         } else {
             return Err(anyhow!("Invalid locator: {}", locator));
@@ -226,21 +226,21 @@ impl<T: HttpTransport> Form<T> {
             .next()
             .ok_or_else(|| anyhow!("Form not found: {}", locator))?;
 
-        // action 属性を取得
+        // Get action attribute
         let action = form_element
             .value()
             .attr("action")
             .unwrap_or("")
             .to_string();
 
-        // method 属性を取得
+        // Get method attribute
         let method = form_element
             .value()
             .attr("method")
             .unwrap_or("get")
             .to_string();
 
-        // フォーム内の hidden フィールドを事前に収集
+        // Collect hidden fields in the form in advance
         let input_selector =
             Selector::parse("input").map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
@@ -258,34 +258,34 @@ impl<T: HttpTransport> Form<T> {
 
                 match input_type {
                     "hidden" => {
-                        // hidden フィールドの値は事前に設定
+                        // Set hidden field value in advance
                         if let Some(value) = input.value().attr("value") {
                             fields.insert(name.to_string(), value.to_string());
                         }
                     }
                     "checkbox" => {
-                        // checkbox の情報を収集
+                        // Collect checkbox information
                         if let Some(value) = input.value().attr("value") {
                             checkboxes
                                 .entry(name.to_string())
                                 .or_default()
                                 .push(value.to_string());
 
-                            // checkedがtrueならチェック済みとして記録
+                            // Record as checked if checked attribute is true
                             if input.value().attr("checked").is_some() {
                                 checked_checkboxes.insert(format!("{}={}", name, value));
                             }
                         }
                     }
                     "radio" => {
-                        // radio の情報を収集
+                        // Collect radio information
                         if let Some(value) = input.value().attr("value") {
                             radios
                                 .entry(name.to_string())
                                 .or_default()
                                 .push(value.to_string());
 
-                            // checkedがtrueなら選択済みとして記録
+                            // Record as selected if checked attribute is true
                             if input.value().attr("checked").is_some() {
                                 selected_radios.insert(name.to_string(), value.to_string());
                             }
@@ -298,7 +298,7 @@ impl<T: HttpTransport> Form<T> {
             }
         }
 
-        // textareaとselectも収集
+        // Also collect textarea and select elements
         let textarea_selector =
             Selector::parse("textarea").map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
         for textarea in form_element.select(&textarea_selector) {
@@ -328,12 +328,12 @@ impl<T: HttpTransport> Form<T> {
         })
     }
 
-    /// フィールドがフォーム内に存在するかチェック
+    /// Check if field exists in form
     pub fn is_exist(&self, field_name: &str) -> bool {
         self.field_types.contains_key(field_name)
     }
 
-    /// フィールドの現在値を取得
+    /// Get current field value
     pub fn get_value(&self, field_name: &str) -> Result<String> {
         self.fields
             .get(field_name)
@@ -341,15 +341,15 @@ impl<T: HttpTransport> Form<T> {
             .ok_or_else(|| anyhow!("Field '{}' not found or has no value", field_name))
     }
 
-    /// フィールドに値を入力
+    /// Fill field with value
     pub fn fill(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
-        // フィールドが存在するかチェック
+        // Check if field exists
         let field_type = self
             .field_types
             .get(field_name)
             .ok_or_else(|| anyhow!("Field '{}' does not exist in the form", field_name))?;
 
-        // type に応じたバリデーション
+        // Validation based on type
         match field_type.as_str() {
             "email" => {
                 if !value.contains('@') {
@@ -373,7 +373,7 @@ impl<T: HttpTransport> Form<T> {
                 }
             }
             "tel" => {
-                // 電話番号は数字、ハイフン、スペース、括弧、+のみ許可
+                // Phone numbers allow only digits, hyphens, spaces, parentheses, and +
                 if !value.chars().all(|c| {
                     c.is_numeric() || c == '-' || c == ' ' || c == '(' || c == ')' || c == '+'
                 }) {
@@ -384,7 +384,7 @@ impl<T: HttpTransport> Form<T> {
                 }
             }
             "date" => {
-                // YYYY-MM-DD形式をチェック
+                // Check YYYY-MM-DD format
                 let parts: Vec<&str> = value.split('-').collect();
                 if parts.len() != 3 {
                     return Err(anyhow!(
@@ -408,7 +408,7 @@ impl<T: HttpTransport> Form<T> {
                 }
             }
             _ => {
-                // text, password, hidden, textarea, select などはバリデーション不要
+                // No validation for text, password, hidden, textarea, select, etc.
             }
         }
 
@@ -417,15 +417,15 @@ impl<T: HttpTransport> Form<T> {
         Ok(self)
     }
 
-    /// チェックボックスをチェックする
+    /// Check a checkbox
     pub fn check(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
-        // チェックボックスが存在するかチェック
+        // Check if checkbox exists
         let checkbox_values = self
             .checkboxes
             .get(field_name)
             .ok_or_else(|| anyhow!("Checkbox '{}' does not exist in the form", field_name))?;
 
-        // 指定された値が存在するかチェック
+        // Check if specified value exists
         if !checkbox_values.contains(&value.to_string()) {
             return Err(anyhow!(
                 "Checkbox '{}' does not have value '{}'",
@@ -434,21 +434,21 @@ impl<T: HttpTransport> Form<T> {
             ));
         }
 
-        // チェック状態に設定
+        // Set to checked state
         self.checked_checkboxes
             .insert(format!("{}={}", field_name, value));
         Ok(self)
     }
 
-    /// チェックボックスのチェックを外す
+    /// Uncheck a checkbox
     pub fn uncheck(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
-        // チェックボックスが存在するかチェック
+        // Check if checkbox exists
         let checkbox_values = self
             .checkboxes
             .get(field_name)
             .ok_or_else(|| anyhow!("Checkbox '{}' does not exist in the form", field_name))?;
 
-        // 指定された値が存在するかチェック
+        // Check if specified value exists
         if !checkbox_values.contains(&value.to_string()) {
             return Err(anyhow!(
                 "Checkbox '{}' does not have value '{}'",
@@ -457,21 +457,21 @@ impl<T: HttpTransport> Form<T> {
             ));
         }
 
-        // チェックを外す
+        // Uncheck
         self.checked_checkboxes
             .remove(&format!("{}={}", field_name, value));
         Ok(self)
     }
 
-    /// ラジオボタンを選択する
+    /// Select a radio button
     pub fn choose(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
-        // ラジオボタンが存在するかチェック
+        // Check if radio button exists
         let radio_values = self
             .radios
             .get(field_name)
             .ok_or_else(|| anyhow!("Radio button '{}' does not exist in the form", field_name))?;
 
-        // 指定された値が存在するかチェック
+        // Check if specified value exists
         if !radio_values.contains(&value.to_string()) {
             return Err(anyhow!(
                 "Radio button '{}' does not have value '{}'",
@@ -480,15 +480,15 @@ impl<T: HttpTransport> Form<T> {
             ));
         }
 
-        // ラジオボタンを選択
+        // Select radio button
         self.selected_radios
             .insert(field_name.to_string(), value.to_string());
         Ok(self)
     }
 
-    /// セレクトボックスのオプションを選択する
+    /// Select an option in select box
     pub fn select(&mut self, field_name: &str, value: &str) -> Result<&mut Self> {
-        // セレクトボックスが存在するかチェック
+        // Check if select box exists
         let field_type = self
             .field_types
             .get(field_name)
@@ -498,27 +498,27 @@ impl<T: HttpTransport> Form<T> {
             return Err(anyhow!("Field '{}' is not a select element", field_name));
         }
 
-        // 値を設定（オプションの存在チェックは実際のHTMLから行うのが理想だが、簡略化のため省略）
+        // Set value (option existence check ideally done from actual HTML, but omitted for simplification)
         self.fields
             .insert(field_name.to_string(), value.to_string());
         Ok(self)
     }
 
-    /// フォームを送信
+    /// Submit form
     pub async fn submit(&self) -> Result<HttpResponse> {
         let mut params = Vec::new();
 
-        // 通常のフィールド
+        // Regular fields
         for (k, v) in &self.fields {
             params.push(format!("{}={}", k, v));
         }
 
-        // チェックされたチェックボックス
+        // Checked checkboxes
         for checked in &self.checked_checkboxes {
             params.push(checked.clone());
         }
 
-        // 選択されたラジオボタン
+        // Selected radio buttons
         for (name, value) in &self.selected_radios {
             params.push(format!("{}={}", name, value));
         }
@@ -548,7 +548,7 @@ impl<T: HttpTransport> Form<T> {
     }
 }
 
-/// HTML ボタンを表す構造体
+/// HTML button structure
 #[derive(Debug)]
 pub struct Button<T: HttpTransport> {
     form_action: Option<String>,
@@ -561,15 +561,15 @@ impl<T: HttpTransport> Button<T> {
     fn find(html: &str, locator: &str, transport: Arc<T>) -> Result<Self> {
         let document = Html::parse_document(html);
 
-        // ロケータに基づいてセレクタを生成
+        // Generate selector based on locator
         let selector_str = if let Some(test_id) = locator.strip_prefix('@') {
-            // test-id 属性
+            // test-id attribute
             format!("button[test-id=\"{}\"]", test_id)
         } else if locator.starts_with('#') {
-            // id 属性
+            // id attribute
             format!("button{}", locator)
         } else {
-            // テキストで検索（contains）は後で処理
+            // Text search (contains) processed later
             "button".to_string()
         };
 
@@ -577,13 +577,13 @@ impl<T: HttpTransport> Button<T> {
             Selector::parse(&selector_str).map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let button_element = if locator.starts_with('@') || locator.starts_with('#') {
-            // 属性ベースの検索
+            // Attribute-based search
             document
                 .select(&button_selector)
                 .next()
                 .ok_or_else(|| anyhow!("Button not found: {}", locator))?
         } else {
-            // テキストベースの検索
+            // Text-based search
             document
                 .select(&button_selector)
                 .find(|el| {
@@ -593,11 +593,11 @@ impl<T: HttpTransport> Button<T> {
                 .ok_or_else(|| anyhow!("Button not found: {}", locator))?
         };
 
-        // ボタンが属するフォームを探す
+        // Find the form that contains the button
         let mut form_action = None;
         let mut form_method = None;
 
-        // 親要素を辿ってformを探す
+        // Traverse parent elements to find form
         for ancestor in button_element.ancestors() {
             if let Some(element) = ancestor.value().as_element() {
                 if element.name() == "form" {
@@ -624,14 +624,14 @@ impl<T: HttpTransport> Button<T> {
         })
     }
 
-    /// ボタンをクリック
+    /// Click button
     pub async fn click(&self) -> Result<HttpResponse> {
         let action = self
             .form_action
             .as_ref()
             .ok_or_else(|| anyhow!("Button is not associated with a form"))?;
 
-        // フォームのデフォルト値を収集（hidden、text、emailなど）
+        // Collect default form values (hidden, text, email, etc.)
         let document = Html::parse_document(&self.html);
         let form_selector = Selector::parse(&format!("form[action=\"{}\"]", action))
             .or_else(|_| Selector::parse("form"))
@@ -649,7 +649,7 @@ impl<T: HttpTransport> Button<T> {
                 let value = input.value().attr("value");
 
                 if let (Some(n), Some(v)) = (name, value) {
-                    // hidden, text, email などのフィールドのデフォルト値を収集
+                    // Collect default values for hidden, text, email, etc. fields
                     if !matches!(
                         input_type,
                         "checkbox" | "radio" | "submit" | "button" | "reset"
@@ -690,7 +690,7 @@ impl<T: HttpTransport> Button<T> {
     }
 }
 
-/// HTML リンクを表す構造体
+/// HTML link structure
 #[derive(Debug)]
 pub struct Link<T: HttpTransport> {
     href: String,
@@ -701,15 +701,15 @@ impl<T: HttpTransport> Link<T> {
     fn find(html: &str, locator: &str, transport: Arc<T>) -> Result<Self> {
         let document = Html::parse_document(html);
 
-        // ロケータに基づいてセレクタを生成
+        // Generate selector based on locator
         let selector_str = if let Some(test_id) = locator.strip_prefix('@') {
-            // test-id 属性
+            // test-id attribute
             format!("a[test-id=\"{}\"]", test_id)
         } else if locator.starts_with('#') {
-            // id 属性
+            // id attribute
             format!("a{}", locator)
         } else {
-            // テキストで検索
+            // Search by text
             "a".to_string()
         };
 
@@ -717,13 +717,13 @@ impl<T: HttpTransport> Link<T> {
             Selector::parse(&selector_str).map_err(|e| anyhow!("Invalid selector: {:?}", e))?;
 
         let link_element = if locator.starts_with('@') || locator.starts_with('#') {
-            // 属性ベースの検索
+            // Attribute-based search
             document
                 .select(&link_selector)
                 .next()
                 .ok_or_else(|| anyhow!("Link not found: {}", locator))?
         } else {
-            // テキストベースの検索
+            // Text-based search
             document
                 .select(&link_selector)
                 .find(|el| {
@@ -733,7 +733,7 @@ impl<T: HttpTransport> Link<T> {
                 .ok_or_else(|| anyhow!("Link not found: {}", locator))?
         };
 
-        // href 属性を取得
+        // Get href attribute
         let href = link_element
             .value()
             .attr("href")
@@ -743,7 +743,7 @@ impl<T: HttpTransport> Link<T> {
         Ok(Self { href, transport })
     }
 
-    /// リンクをクリック
+    /// Click link
     pub async fn click(&self) -> Result<HttpResponse> {
         let req = HttpRequest {
             method: Method::Get,
@@ -756,7 +756,7 @@ impl<T: HttpTransport> Link<T> {
     }
 }
 
-/// HTML要素を表す構造体
+/// HTML element structure
 #[derive(Debug, Clone)]
 pub struct Element {
     text_content: String,
@@ -825,17 +825,17 @@ impl Element {
         }
     }
 
-    /// 要素のテキストコンテンツを取得
+    /// Get element text content
     pub fn text(&self) -> String {
         self.text_content.clone()
     }
 
-    /// 指定された属性の値を取得
+    /// Get value of specified attribute
     pub fn attr(&self, name: &str) -> Option<String> {
         self.attributes.get(name).cloned()
     }
 
-    /// 指定されたクラスを持っているかチェック
+    /// Check if element has specified class
     pub fn has_class(&self, class: &str) -> bool {
         if let Some(classes) = self.attributes.get("class") {
             classes.split_whitespace().any(|c| c == class)
@@ -844,38 +844,38 @@ impl Element {
         }
     }
 
-    /// 要素の内部HTMLを取得
+    /// Get element inner HTML
     pub fn inner_html(&self) -> String {
         self.inner_html.clone()
     }
 
-    /// テキストが指定された文字列を含むかチェック
+    /// Check if text contains specified string
     pub fn text_contains(&self, text: &str) -> bool {
         self.text_content.contains(text)
     }
 
-    /// disabled 属性を持っているかチェック
+    /// Check if element has disabled attribute
     pub fn is_disabled(&self) -> bool {
         self.attributes.contains_key("disabled")
     }
 
-    /// required 属性を持っているかチェック
+    /// Check if element has required attribute
     pub fn is_required(&self) -> bool {
         self.attributes.contains_key("required")
     }
 
-    /// readonly 属性を持っているかチェック
+    /// Check if element has readonly attribute
     pub fn is_readonly(&self) -> bool {
         self.attributes.contains_key("readonly")
     }
 
-    /// checked 属性を持っているかチェック
+    /// Check if element has checked attribute
     pub fn is_checked(&self) -> bool {
         self.attributes.contains_key("checked")
     }
 }
 
-/// テーブルの行を表す構造体
+/// Table row structure
 #[derive(Debug, Clone)]
 pub struct Row {
     cells: Vec<String>,
@@ -883,12 +883,12 @@ pub struct Row {
 }
 
 impl Row {
-    /// 行内の全セルのテキストを取得
+    /// Get text of all cells in row
     pub fn cells(&self) -> Vec<String> {
         self.cells.clone()
     }
 
-    /// 指定されたインデックスのセルのテキストを取得
+    /// Get text of cell at specified index
     pub fn cell(&self, index: usize) -> Result<String> {
         self.cells
             .get(index)
@@ -896,7 +896,7 @@ impl Row {
             .ok_or_else(|| anyhow!("Cell index {} out of bounds", index))
     }
 
-    /// ヘッダー名を指定してセルのテキストを取得
+    /// Get cell text by header name
     pub fn get(&self, column: &str) -> Result<String> {
         let index = self
             .headers
@@ -907,7 +907,7 @@ impl Row {
     }
 }
 
-/// HTMLテーブルを表す構造体
+/// HTML table structure
 #[derive(Debug, Clone)]
 pub struct Table {
     headers: Vec<String>,
@@ -926,14 +926,14 @@ impl Table {
             .next()
             .ok_or_else(|| anyhow!("Table not found: {}", locator))?;
 
-        // ヘッダーの取得
+        // Get headers
         let th_selector = Selector::parse("thead th, tr th").unwrap();
         let headers: Vec<String> = table_element
             .select(&th_selector)
             .map(|th| th.text().collect::<String>().trim().to_string())
             .collect();
 
-        // 行の取得
+        // Get rows
         let tr_selector = Selector::parse("tbody tr, tr").unwrap();
         let td_selector = Selector::parse("td").unwrap();
 
@@ -959,17 +959,17 @@ impl Table {
         Ok(Self { headers, rows })
     }
 
-    /// テーブルのヘッダーを取得
+    /// Get table headers
     pub fn headers(&self) -> Vec<String> {
         self.headers.clone()
     }
 
-    /// テーブルの全行を取得
+    /// Get all table rows
     pub fn rows(&self) -> Vec<Row> {
         self.rows.clone()
     }
 
-    /// 指定されたインデックスの行を取得
+    /// Get row at specified index
     pub fn row(&self, index: usize) -> Result<Row> {
         self.rows
             .get(index)
@@ -977,13 +977,13 @@ impl Table {
             .ok_or_else(|| anyhow!("Row index {} out of bounds", index))
     }
 
-    /// 指定された行・列のセルのテキストを取得
+    /// Get text of cell at specified row and column
     pub fn cell(&self, row: usize, col: usize) -> Result<String> {
         let row_data = self.row(row)?;
         row_data.cell(col)
     }
 
-    /// 指定された列の値が一致する行を検索
+    /// Search for row where specified column value matches
     pub fn find_row(&self, column: &str, value: &str) -> Result<Row> {
         self.rows
             .iter()
@@ -993,7 +993,7 @@ impl Table {
     }
 }
 
-/// HTMLリストを表す構造体
+/// HTML list structure
 #[derive(Debug, Clone)]
 pub struct List {
     items: Vec<String>,
@@ -1011,7 +1011,7 @@ impl List {
             .next()
             .ok_or_else(|| anyhow!("List not found: {}", locator))?;
 
-        // li要素を取得
+        // Get li elements
         let li_selector = Selector::parse("li").unwrap();
         let items: Vec<String> = list_element
             .select(&li_selector)
@@ -1021,12 +1021,12 @@ impl List {
         Ok(Self { items })
     }
 
-    /// リストの全アイテムのテキストを取得
+    /// Get text of all list items
     pub fn items(&self) -> Vec<String> {
         self.items.clone()
     }
 
-    /// 指定されたインデックスのアイテムのテキストを取得
+    /// Get text of item at specified index
     pub fn item(&self, index: usize) -> Result<String> {
         self.items
             .get(index)
@@ -1034,23 +1034,23 @@ impl List {
             .ok_or_else(|| anyhow!("Item index {} out of bounds", index))
     }
 
-    /// リストアイテムの数を返す
+    /// Return number of list items
     pub fn len(&self) -> usize {
         self.items.len()
     }
 
-    /// リストが空かどうかを返す
+    /// Return whether list is empty
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 
-    /// 指定されたテキストを含むアイテムが存在するかチェック
+    /// Check if item containing specified text exists
     pub fn contains(&self, text: &str) -> bool {
         self.items.iter().any(|item| item == text)
     }
 }
 
-/// HTML画像を表す構造体
+/// HTML image structure
 #[derive(Debug, Clone)]
 pub struct Image {
     src: String,
@@ -1123,28 +1123,28 @@ impl Image {
         }
     }
 
-    /// 画像の src 属性を取得
+    /// Get image src attribute
     pub fn src(&self) -> String {
         self.src.clone()
     }
 
-    /// 画像の alt 属性を取得
+    /// Get image alt attribute
     pub fn alt(&self) -> Option<String> {
         self.alt.clone()
     }
 
-    /// 画像の width 属性を取得
+    /// Get image width attribute
     pub fn width(&self) -> Option<String> {
         self.width.clone()
     }
 
-    /// 画像の height 属性を取得
+    /// Get image height attribute
     pub fn height(&self) -> Option<String> {
         self.height.clone()
     }
 }
 
-/// Selectのオプションを表す構造体
+/// Select option structure
 #[derive(Debug, Clone)]
 pub struct SelectOption {
     value: String,
@@ -1153,23 +1153,23 @@ pub struct SelectOption {
 }
 
 impl SelectOption {
-    /// オプションの value 属性を取得
+    /// Get option value attribute
     pub fn value(&self) -> String {
         self.value.clone()
     }
 
-    /// オプションの表示テキストを取得
+    /// Get option display text
     pub fn text(&self) -> String {
         self.text.clone()
     }
 
-    /// オプションが選択されているかチェック
+    /// Check if option is selected
     pub fn is_selected(&self) -> bool {
         self.selected
     }
 }
 
-/// HTML select 要素を表す構造体
+/// HTML select element structure
 #[derive(Debug, Clone)]
 pub struct SelectElement {
     options: Vec<SelectOption>,
@@ -1197,7 +1197,7 @@ impl SelectElement {
             .next()
             .ok_or_else(|| anyhow!("Select element not found: {}", locator))?;
 
-        // option 要素を取得
+        // Get option elements
         let option_selector = Selector::parse("option").unwrap();
         let options: Vec<SelectOption> = select_element
             .select(&option_selector)
@@ -1222,12 +1222,12 @@ impl SelectElement {
         Ok(Self { options })
     }
 
-    /// 全てのオプションを取得
+    /// Get all options
     pub fn options(&self) -> Vec<SelectOption> {
         self.options.clone()
     }
 
-    /// 選択されているオプションを取得
+    /// Get selected option
     pub fn selected_option(&self) -> Result<SelectOption> {
         self.options
             .iter()
